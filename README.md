@@ -39,6 +39,7 @@ sft_prompt_diversity.py          # Shared deterministic prompt diversification
 ### Data Structures (Tier 0)
 | Dataset | Samples | Functions | Source Module |
 |---------|---------|-----------|--------------|
+| `tier0-data-alist` | 80 | 8 | `lattice/data/alist.ss` |
 | `tier0-data-collection-utils` | 80 | 8 | `lattice/data/collection-utils.ss` |
 | `tier0-data-dict` | 118 | 12 | `lattice/data/dict.ss` |
 | `tier0-data-hamt` | 80 | 8 | `lattice/data/hamt.ss` |
@@ -60,6 +61,7 @@ sft_prompt_diversity.py          # Shared deterministic prompt diversification
 ### Number Theory (Tier 0)
 | Dataset | Samples | Functions | Source Module |
 |---------|---------|-----------|--------------|
+| `tier0-number-theory-fast-multiply` | 80 | 8 | `lattice/number-theory/fast-multiply.ss` |
 | `tier0-number-theory-modular` | 140 | 14 | `lattice/number-theory/modular.ss` |
 | `tier0-number-theory-primality` | 80 | 8 | `lattice/number-theory/primality.ss` |
 

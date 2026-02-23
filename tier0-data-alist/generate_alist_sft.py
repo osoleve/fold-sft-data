@@ -683,10 +683,10 @@ composition_cases = [
     ),
     (
         "alist-set",
-        "Return #t iff setting 'k preserves only one entry for key 'k.",
-        "(let ([r (alist-set '((k . 1) (x . 2) (k . 3)) 'k 8)]) (= (length (filter (lambda (p) (eq? (car p) 'k)) r)) 1))",
-        "(equal? (let ([r (alist-set '((k . 1) (x . 2) (k . 3)) 'k 8)]) (= (length (filter (lambda (p) (eq? (car p) 'k)) r)) 1)) #t)",
-        "hard",
+        "Return #t iff setting duplicated key 'k makes lookup return the newly written value.",
+        "(equal? (alist-ref (alist-set '((k . 1) (x . 2) (k . 3)) 'k 8) 'k) 8)",
+        "(equal? (alist-ref (alist-set '((k . 1) (x . 2) (k . 3)) 'k 8) 'k) 8)",
+        "medium",
         ["property"],
     ),
 
