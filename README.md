@@ -40,6 +40,8 @@ sft_prompt_diversity.py          # Shared deterministic prompt diversification
 | Dataset | Samples | Functions | Source Module |
 |---------|---------|-----------|--------------|
 | `tier0-data-alist` | 80 | 8 | `lattice/data/alist.ss` |
+| `tier0-data-avl-tree` | 80 | 8 | `lattice/data/avl-tree.ss` |
+| `tier0-data-collection-protocol` | 80 | 8 | `lattice/data/collection-protocol.ss` |
 | `tier0-data-collection-utils` | 80 | 8 | `lattice/data/collection-utils.ss` |
 | `tier0-data-dict` | 118 | 12 | `lattice/data/dict.ss` |
 | `tier0-data-hamt` | 80 | 8 | `lattice/data/hamt.ss` |
@@ -53,7 +55,9 @@ sft_prompt_diversity.py          # Shared deterministic prompt diversification
 | Dataset | Samples | Functions | Source Module |
 |---------|---------|-----------|--------------|
 | `tier0-linalg-integer-matrix` | 80 | 8 | `lattice/linalg/integer-matrix.ss` |
+| `tier0-linalg-iteration` | 80 | 8 | `lattice/linalg/iteration.ss` |
 | `tier0-linalg-matrix` | 80 | 12 | `lattice/linalg/matrix.ss` |
+| `tier0-linalg-matrix-decomp` | 80 | 8 | `lattice/linalg/matrix-decomp.ss` |
 | `tier0-linalg-numeric-instances` | 80 | 8 | `lattice/linalg/numeric-instances.ss` |
 | `tier0-linalg-sparse` | 80 | 8 | `lattice/linalg/sparse.ss` |
 | `tier0-linalg-vec` | 80 | 8 | `lattice/linalg/vec.ss` |

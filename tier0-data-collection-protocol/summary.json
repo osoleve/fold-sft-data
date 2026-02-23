@@ -1,0 +1,42 @@
+{
+  "total": 80,
+  "train": 66,
+  "eval": 14,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 5,
+      "train": 27
+    },
+    "spec_to_code": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "translation": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    }
+  },
+  "difficulty": {
+    "easy": 17,
+    "hard": 18,
+    "medium": 45
+  },
+  "source_functions": {
+    "coll-all?": 10,
+    "coll-any?": 10,
+    "coll-count": 10,
+    "coll-filter-list": 10,
+    "coll-find": 10,
+    "coll-map-list": 10,
+    "coll-partition": 10,
+    "coll-protocols": 10
+  }
+}
