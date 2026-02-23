@@ -1,0 +1,42 @@
+{
+  "total": 80,
+  "train": 66,
+  "eval": 14,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 5,
+      "train": 27
+    },
+    "spec_to_code": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "translation": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    }
+  },
+  "difficulty": {
+    "easy": 21,
+    "hard": 34,
+    "medium": 25
+  },
+  "source_functions": {
+    "coo->csr": 10,
+    "dense->sparse-coo": 10,
+    "sparse-coo-add-impl": 10,
+    "sparse-coo-drop-below": 10,
+    "sparse-coo-from-triplets": 10,
+    "sparse-coo-ref": 10,
+    "sparse-csr-ref": 10,
+    "sparse-csr-vec-mul": 10
+  }
+}

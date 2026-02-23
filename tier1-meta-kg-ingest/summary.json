@@ -1,0 +1,42 @@
+{
+  "total": 80,
+  "train": 66,
+  "eval": 14,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 5,
+      "train": 27
+    },
+    "spec_to_code": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "translation": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    }
+  },
+  "difficulty": {
+    "easy": 21,
+    "hard": 21,
+    "medium": 38
+  },
+  "source_functions": {
+    "kg-extract-triples": 10,
+    "kg-make-triple": 10,
+    "kg-normalize-entity": 10,
+    "kg-normalize-relation": 10,
+    "kg-parse-simple-fact": 10,
+    "kg-upsert-triple": 10,
+    "kg-upsert-triples": 10,
+    "kg-valid-triple?": 10
+  }
+}

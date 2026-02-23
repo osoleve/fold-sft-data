@@ -1,0 +1,37 @@
+{
+  "total": 212,
+  "train": 166,
+  "eval": 46,
+  "source_datasets": [
+    "/home/osoleve/fold/data/core-base-prelude/all.jsonl",
+    "/home/osoleve/fold/data/core-base-prelude-extended/all.jsonl"
+  ],
+  "families": {
+    "bugfix": {
+      "total": 39,
+      "eval": 8,
+      "train": 31
+    },
+    "composition": {
+      "total": 56,
+      "eval": 13,
+      "train": 43
+    },
+    "spec_to_code": {
+      "total": 78,
+      "eval": 17,
+      "train": 61
+    },
+    "translation": {
+      "total": 39,
+      "eval": 8,
+      "train": 31
+    }
+  },
+  "difficulty": {
+    "easy": 116,
+    "hard": 16,
+    "medium": 80
+  },
+  "source_functions": 39
+}

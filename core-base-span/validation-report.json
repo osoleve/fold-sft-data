@@ -1,0 +1,20 @@
+{
+  "status": "ok",
+  "summary": {
+    "total": 54,
+    "families": {
+      "bugfix": 9,
+      "composition": 18,
+      "spec_to_code": 18,
+      "translation": 9
+    },
+    "difficulty": {
+      "easy": 37,
+      "medium": 17
+    },
+    "splits": {
+      "eval": 11,
+      "train": 43
+    }
+  }
+}

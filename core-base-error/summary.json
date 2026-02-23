@@ -1,0 +1,27 @@
+{
+  "total": 100,
+  "train": 80,
+  "eval": 20,
+  "families": {
+    "bugfix": {
+      "total": 18,
+      "eval": 4,
+      "train": 14
+    },
+    "composition": {
+      "total": 28,
+      "eval": 5,
+      "train": 23
+    },
+    "spec_to_code": {
+      "total": 36,
+      "eval": 7,
+      "train": 29
+    },
+    "translation": {
+      "total": 18,
+      "eval": 4,
+      "train": 14
+    }
+  }
+}

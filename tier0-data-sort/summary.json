@@ -1,0 +1,42 @@
+{
+  "total": 80,
+  "train": 66,
+  "eval": 14,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 5,
+      "train": 27
+    },
+    "spec_to_code": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "translation": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    }
+  },
+  "difficulty": {
+    "easy": 20,
+    "hard": 29,
+    "medium": 31
+  },
+  "source_functions": {
+    "insert-sorted": 9,
+    "insertion-sort-by": 9,
+    "merge": 10,
+    "merge-sort-by": 9,
+    "nth-smallest": 12,
+    "partition": 11,
+    "quicksort-by": 11,
+    "split-at": 9
+  }
+}

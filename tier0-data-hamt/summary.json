@@ -1,0 +1,42 @@
+{
+  "total": 80,
+  "train": 66,
+  "eval": 14,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 5,
+      "train": 27
+    },
+    "spec_to_code": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "translation": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    }
+  },
+  "difficulty": {
+    "easy": 22,
+    "hard": 33,
+    "medium": 25
+  },
+  "source_functions": {
+    "alist->hamt": 10,
+    "hamt-assoc": 10,
+    "hamt-dissoc": 10,
+    "hamt-empty?": 10,
+    "hamt-has-key?": 10,
+    "hamt-lookup": 10,
+    "hamt-merge-with": 10,
+    "hamt-size": 10
+  }
+}

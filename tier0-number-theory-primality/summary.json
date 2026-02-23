@@ -1,0 +1,42 @@
+{
+  "total": 80,
+  "train": 66,
+  "eval": 14,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 5,
+      "train": 27
+    },
+    "spec_to_code": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "translation": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    }
+  },
+  "difficulty": {
+    "easy": 14,
+    "hard": 28,
+    "medium": 38
+  },
+  "source_functions": {
+    "divisors": 10,
+    "euler-totient": 10,
+    "factorize": 10,
+    "jacobi-symbol": 10,
+    "miller-rabin?": 10,
+    "prime-factorization": 10,
+    "prime?": 10,
+    "trial-division": 10
+  }
+}

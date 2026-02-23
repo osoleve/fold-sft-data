@@ -1,0 +1,42 @@
+{
+  "total": 80,
+  "train": 66,
+  "eval": 14,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 5,
+      "train": 27
+    },
+    "spec_to_code": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "translation": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    }
+  },
+  "difficulty": {
+    "easy": 27,
+    "hard": 17,
+    "medium": 36
+  },
+  "source_functions": {
+    "apply-concept-boosts": 10,
+    "concept-boost-for-query": 10,
+    "lattice-export-source": 10,
+    "lattice-find-by-purity": 10,
+    "lattice-find-by-tier": 10,
+    "lattice-find-prefix": 10,
+    "lattice-find-substring": 10,
+    "result->skill-name": 10
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "total": 80,
+  "train": 66,
+  "eval": 14,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 5,
+      "train": 27
+    },
+    "spec_to_code": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "translation": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    }
+  },
+  "difficulty": {
+    "easy": 37,
+    "hard": 6,
+    "medium": 37
+  },
+  "source_functions": {
+    "matrix-hadamard": 10,
+    "matrix-recip": 10,
+    "matrix/": 10,
+    "scalar-matrix+": 10,
+    "vec-abs": 10,
+    "vec-pow": 10,
+    "vec-recip": 10,
+    "vec-signum": 10
+  }
+}
