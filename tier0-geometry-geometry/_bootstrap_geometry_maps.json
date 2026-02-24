@@ -1,0 +1,602 @@
+{
+  "function_order": [
+    "point3",
+    "line3",
+    "line3?",
+    "line3-origin",
+    "line3-direction",
+    "ray3",
+    "ray3?",
+    "ray3-origin",
+    "ray3-direction",
+    "ray3-point-at",
+    "plane3",
+    "plane3?",
+    "plane3-normal",
+    "plane3-d",
+    "plane3-from-point-normal",
+    "plane3-from-points",
+    "triangle3",
+    "triangle3?",
+    "triangle3-p1",
+    "triangle3-p2",
+    "triangle3-p3",
+    "circle",
+    "circle?",
+    "circle-center",
+    "circle-radius",
+    "sphere",
+    "sphere?",
+    "sphere-center",
+    "sphere-radius",
+    "aabb",
+    "aabb?",
+    "aabb-min",
+    "aabb-max",
+    "aabb-center",
+    "aabb-extents",
+    "obb",
+    "obb?",
+    "obb-center",
+    "obb-axes",
+    "obb-extents",
+    "transform-identity",
+    "transform-translation",
+    "transform-scale",
+    "transform-rotation-x",
+    "transform-rotation-y",
+    "transform-rotation-z",
+    "transform-rotation-axis",
+    "transform-from-quaternion",
+    "transform-point",
+    "transform-vector",
+    "distance-point-point",
+    "distance-point-plane",
+    "distance-point-line",
+    "distance-point-sphere",
+    "intersect-ray-plane",
+    "intersect-ray-sphere",
+    "intersect-ray-aabb",
+    "intersect-ray-triangle",
+    "point-in-sphere?",
+    "point-in-aabb?",
+    "point-in-triangle?",
+    "closest-point-on-line",
+    "closest-point-on-plane",
+    "closest-point-on-aabb",
+    "triangle-area",
+    "sphere-volume",
+    "sphere-surface-area",
+    "aabb-volume",
+    "barycentric-coords",
+    "triangle-normal",
+    "aabb-merge",
+    "aabb-from-points",
+    "vec3-to-spherical",
+    "vec3-to-cylindrical"
+  ],
+  "difficulty": {
+    "point3": "easy",
+    "line3": "easy",
+    "line3?": "easy",
+    "line3-origin": "easy",
+    "line3-direction": "easy",
+    "ray3": "easy",
+    "ray3?": "easy",
+    "ray3-origin": "easy",
+    "ray3-direction": "easy",
+    "plane3": "easy",
+    "plane3?": "easy",
+    "plane3-normal": "easy",
+    "plane3-d": "easy",
+    "triangle3": "easy",
+    "triangle3?": "easy",
+    "triangle3-p1": "easy",
+    "triangle3-p2": "easy",
+    "triangle3-p3": "easy",
+    "circle": "easy",
+    "circle?": "easy",
+    "circle-center": "easy",
+    "circle-radius": "easy",
+    "sphere": "easy",
+    "sphere?": "easy",
+    "sphere-center": "easy",
+    "sphere-radius": "easy",
+    "aabb": "easy",
+    "aabb?": "easy",
+    "aabb-min": "easy",
+    "aabb-max": "easy",
+    "obb": "easy",
+    "obb?": "easy",
+    "obb-center": "easy",
+    "obb-axes": "easy",
+    "obb-extents": "easy",
+    "ray3-point-at": "medium",
+    "plane3-from-point-normal": "medium",
+    "aabb-center": "medium",
+    "aabb-extents": "medium",
+    "transform-identity": "medium",
+    "transform-translation": "medium",
+    "transform-scale": "medium",
+    "transform-rotation-x": "medium",
+    "transform-rotation-y": "medium",
+    "transform-rotation-z": "medium",
+    "transform-from-quaternion": "medium",
+    "transform-point": "medium",
+    "transform-vector": "medium",
+    "distance-point-point": "medium",
+    "distance-point-plane": "medium",
+    "distance-point-line": "medium",
+    "distance-point-sphere": "medium",
+    "triangle-area": "medium",
+    "sphere-volume": "medium",
+    "sphere-surface-area": "medium",
+    "aabb-volume": "medium",
+    "closest-point-on-line": "medium",
+    "closest-point-on-plane": "medium",
+    "closest-point-on-aabb": "medium",
+    "aabb-merge": "medium",
+    "aabb-from-points": "medium",
+    "vec3-to-spherical": "medium",
+    "vec3-to-cylindrical": "medium",
+    "triangle-normal": "medium",
+    "plane3-from-points": "hard",
+    "transform-rotation-axis": "hard",
+    "intersect-ray-plane": "hard",
+    "intersect-ray-sphere": "hard",
+    "intersect-ray-aabb": "hard",
+    "intersect-ray-triangle": "hard",
+    "point-in-sphere?": "hard",
+    "point-in-aabb?": "hard",
+    "point-in-triangle?": "hard",
+    "barycentric-coords": "hard"
+  },
+  "verify_by_function": {
+    "point3": "(let ([p (point3 1 2 3)]) (and (= (vec3-x p) 1) (= (vec3-y p) 2) (= (vec3-z p) 3)))",
+    "line3": "(let* ([o (vec3 0 0 0)] [d (vec3 1 0 0)] [l (line3 o d)]) (and (line3? l) (equal? (line3-origin l) o) (equal? (line3-direction l) d)))",
+    "line3?": "(and (line3? (line3 (vec3 0 0 0) (vec3 1 0 0))) (not (line3? '(not-a-line))) (not (line3? 42)))",
+    "line3-origin": "(equal? (line3-origin (line3 (vec3 1 2 3) (vec3 0 1 0))) (vec3 1 2 3))",
+    "line3-direction": "(equal? (line3-direction (line3 (vec3 0 0 0) (vec3 0 0 1))) (vec3 0 0 1))",
+    "ray3": "(let* ([o (vec3 0 0 0)] [d (vec3 1 0 0)] [r (ray3 o d)]) (and (ray3? r) (equal? (ray3-origin r) o) (equal? (ray3-direction r) d)))",
+    "ray3?": "(and (ray3? (ray3 (vec3 0 0 0) (vec3 1 0 0))) (not (ray3? '(not-a-ray))) (not (ray3? 'ray3)))",
+    "ray3-origin": "(equal? (ray3-origin (ray3 (vec3 5 5 5) (vec3 1 0 0))) (vec3 5 5 5))",
+    "ray3-direction": "(equal? (ray3-direction (ray3 (vec3 0 0 0) (vec3 0 1 0))) (vec3 0 1 0))",
+    "ray3-point-at": "(let* ([r (ray3 (vec3 0 0 0) (vec3 1 0 0))] [p (ray3-point-at r 5)]) (< (abs (- (vec3-x p) 5)) 0.001))",
+    "plane3": "(let* ([n (vec3 0 1 0)] [pl (plane3 n 5)]) (and (plane3? pl) (equal? (plane3-normal pl) n) (= (plane3-d pl) 5)))",
+    "plane3?": "(and (plane3? (plane3 (vec3 0 1 0) 0)) (not (plane3? '(not-a-plane))) (not (plane3? 3.14)))",
+    "plane3-normal": "(equal? (plane3-normal (plane3 (vec3 1 0 0) 0)) (vec3 1 0 0))",
+    "plane3-d": "(= (plane3-d (plane3 (vec3 0 1 0) 10)) 10)",
+    "plane3-from-point-normal": "(let* ([p (vec3 0 5 0)] [n (vec3 0 1 0)] [pl (plane3-from-point-normal p n)]) (and (plane3? pl) (< (abs (- (plane3-d pl) -5)) 0.001)))",
+    "plane3-from-points": "(let* ([p1 (vec3 0 0 0)] [p2 (vec3 1 0 0)] [p3 (vec3 0 1 0)] [pl (plane3-from-points p1 p2 p3)]) (and (plane3? pl) (< (abs (- (vec3-z (plane3-normal pl)) 1.0)) 0.001)))",
+    "triangle3": "(let* ([p1 (vec3 0 0 0)] [p2 (vec3 1 0 0)] [p3 (vec3 0 1 0)] [t (triangle3 p1 p2 p3)]) (and (triangle3? t) (equal? (triangle3-p1 t) p1) (equal? (triangle3-p2 t) p2) (equal? (triangle3-p3 t) p3)))",
+    "triangle3?": "(and (triangle3? (triangle3 (vec3 0 0 0) (vec3 1 0 0) (vec3 0 1 0))) (not (triangle3? '(not-a-triangle))))",
+    "triangle3-p1": "(equal? (triangle3-p1 (triangle3 (vec3 1 2 3) (vec3 4 5 6) (vec3 7 8 9))) (vec3 1 2 3))",
+    "triangle3-p2": "(equal? (triangle3-p2 (triangle3 (vec3 1 2 3) (vec3 4 5 6) (vec3 7 8 9))) (vec3 4 5 6))",
+    "triangle3-p3": "(equal? (triangle3-p3 (triangle3 (vec3 1 2 3) (vec3 4 5 6) (vec3 7 8 9))) (vec3 7 8 9))",
+    "circle": "(let* ([c (vec2 1 2)] [r 5] [ci (circle c r)]) (and (circle? ci) (equal? (circle-center ci) c) (= (circle-radius ci) r)))",
+    "circle?": "(and (circle? (circle (vec2 0 0) 1)) (not (circle? '(not-a-circle))) (not (circle? 42)))",
+    "circle-center": "(equal? (circle-center (circle (vec2 3 4) 10)) (vec2 3 4))",
+    "circle-radius": "(= (circle-radius (circle (vec2 0 0) 7)) 7)",
+    "sphere": "(let* ([c (vec3 1 2 3)] [r 10] [s (sphere c r)]) (and (sphere? s) (equal? (sphere-center s) c) (= (sphere-radius s) r)))",
+    "sphere?": "(and (sphere? (sphere (vec3 0 0 0) 1)) (not (sphere? '(not-a-sphere))) (not (sphere? 'sphere)))",
+    "sphere-center": "(equal? (sphere-center (sphere (vec3 5 5 5) 3)) (vec3 5 5 5))",
+    "sphere-radius": "(= (sphere-radius (sphere (vec3 0 0 0) 15)) 15)",
+    "aabb": "(let* ([mn (vec3 -1 -1 -1)] [mx (vec3 1 1 1)] [b (aabb mn mx)]) (and (aabb? b) (equal? (aabb-min b) mn) (equal? (aabb-max b) mx)))",
+    "aabb?": "(and (aabb? (aabb (vec3 0 0 0) (vec3 1 1 1))) (not (aabb? '(not-an-aabb))) (not (aabb? 'aabb)))",
+    "aabb-min": "(equal? (aabb-min (aabb (vec3 -5 -5 -5) (vec3 5 5 5))) (vec3 -5 -5 -5))",
+    "aabb-max": "(equal? (aabb-max (aabb (vec3 -5 -5 -5) (vec3 5 5 5))) (vec3 5 5 5))",
+    "aabb-center": "(let ([c (aabb-center (aabb (vec3 0 0 0) (vec3 10 10 10)))]) (< (abs (- (vec3-x c) 5)) 0.001))",
+    "aabb-extents": "(let ([e (aabb-extents (aabb (vec3 0 0 0) (vec3 10 10 10)))]) (< (abs (- (vec3-x e) 5)) 0.001))",
+    "obb": "(let* ([c (vec3 0 0 0)] [ax (list (vec3 1 0 0) (vec3 0 1 0) (vec3 0 0 1))] [ex (vec3 1 2 3)] [b (obb c ax ex)]) (and (obb? b) (equal? (obb-center b) c) (equal? (obb-axes b) ax) (equal? (obb-extents b) ex)))",
+    "obb?": "(and (obb? (obb (vec3 0 0 0) (list (vec3 1 0 0)) (vec3 1 1 1))) (not (obb? '(not-an-obb))))",
+    "obb-center": "(equal? (obb-center (obb (vec3 1 2 3) (list (vec3 1 0 0)) (vec3 1 1 1))) (vec3 1 2 3))",
+    "obb-axes": "(let ([ax (list (vec3 1 0 0) (vec3 0 1 0) (vec3 0 0 1))]) (equal? (obb-axes (obb (vec3 0 0 0) ax (vec3 1 1 1))) ax))",
+    "obb-extents": "(equal? (obb-extents (obb (vec3 0 0 0) (list (vec3 1 0 0)) (vec3 5 5 5))) (vec3 5 5 5))",
+    "transform-identity": "(let* ([m (transform-identity)] [p (vec3 1 2 3)] [r (transform-point m p)]) (and (< (abs (- (vec3-x r) 1)) 0.001) (< (abs (- (vec3-y r) 2)) 0.001) (< (abs (- (vec3-z r) 3)) 0.001)))",
+    "transform-translation": "(let* ([m (transform-translation (vec3 10 20 30))] [p (vec3 1 2 3)] [r (transform-point m p)]) (and (< (abs (- (vec3-x r) 11)) 0.001) (< (abs (- (vec3-y r) 22)) 0.001) (< (abs (- (vec3-z r) 33)) 0.001)))",
+    "transform-scale": "(let* ([m (transform-scale 2)] [p (vec3 1 2 3)] [r (transform-point m p)]) (and (< (abs (- (vec3-x r) 2)) 0.001) (< (abs (- (vec3-y r) 4)) 0.001) (< (abs (- (vec3-z r) 6)) 0.001)))",
+    "transform-rotation-x": "(let* ([angle (/ 3.141592653589793 2)] [m (transform-rotation-x angle)] [p (vec3 0 1 0)] [r (transform-point m p)]) (and (< (abs (vec3-x r)) 0.001) (< (abs (vec3-y r)) 0.001) (< (abs (- (vec3-z r) 1)) 0.001)))",
+    "transform-rotation-y": "(let* ([angle (/ 3.141592653589793 2)] [m (transform-rotation-y angle)] [p (vec3 1 0 0)] [r (transform-point m p)]) (and (< (abs (vec3-x r)) 0.001) (< (abs (vec3-y r)) 0.001) (< (abs (- (vec3-z r) -1)) 0.001)))",
+    "transform-rotation-z": "(let* ([angle (/ 3.141592653589793 2)] [m (transform-rotation-z angle)] [p (vec3 1 0 0)] [r (transform-point m p)]) (and (< (abs (vec3-x r)) 0.001) (< (abs (- (vec3-y r) 1)) 0.001) (< (abs (vec3-z r)) 0.001)))",
+    "transform-rotation-axis": "(let* ([axis (vec3 0 0 1)] [angle (/ 3.141592653589793 2)] [m (transform-rotation-axis axis angle)] [p (vec3 1 0 0)] [r (transform-point m p)]) (and (< (abs (vec3-x r)) 0.001) (< (abs (- (vec3-y r) 1)) 0.001)))",
+    "transform-from-quaternion": "(let* ([q (quat 1 0 0 0)] [m (transform-from-quaternion q)] [p (vec3 1 0 0)] [r (transform-point m p)]) (and (< (abs (- (vec3-x r) 1)) 0.001) (< (abs (vec3-y r)) 0.001) (< (abs (vec3-z r)) 0.001)))",
+    "transform-point": "(let* ([m (transform-translation (vec3 5 10 15))] [p (vec3 1 2 3)] [r (transform-point m p)]) (and (< (abs (- (vec3-x r) 6)) 0.001) (< (abs (- (vec3-y r) 12)) 0.001) (< (abs (- (vec3-z r) 18)) 0.001)))",
+    "transform-vector": "(let* ([m (transform-translation (vec3 100 100 100))] [v (vec3 1 0 0)] [r (transform-vector m v)]) (and (< (abs (- (vec3-x r) 1)) 0.001) (< (abs (vec3-y r)) 0.001) (< (abs (vec3-z r)) 0.001)))",
+    "distance-point-point": "(let* ([p1 (vec3 0 0 0)] [p2 (vec3 3 4 0)] [d (distance-point-point p1 p2)]) (< (abs (- d 5.0)) 0.001))",
+    "distance-point-plane": "(let* ([pt (vec3 0 10 0)] [pl (plane3 (vec3 0 1 0) 0)] [d (distance-point-plane pt pl)]) (< (abs (- d 10.0)) 0.001))",
+    "distance-point-line": "(let* ([pt (vec3 0 5 0)] [ln (line3 (vec3 0 0 0) (vec3 1 0 0))] [d (distance-point-line pt ln)]) (< (abs (- d 5.0)) 0.001))",
+    "distance-point-sphere": "(let* ([pt (vec3 15 0 0)] [sp (sphere (vec3 0 0 0) 10)] [d (distance-point-sphere pt sp)]) (< (abs (- d 5.0)) 0.001))",
+    "intersect-ray-plane": "(let* ([r (ray3 (vec3 0 10 0) (vec3 0 -1 0))] [pl (plane3 (vec3 0 1 0) 0)] [t (intersect-ray-plane r pl)]) (and t (< (abs (- t 10.0)) 0.001)))",
+    "intersect-ray-sphere": "(let* ([r (ray3 (vec3 0 0 -20) (vec3 0 0 1))] [sp (sphere (vec3 0 0 0) 5)] [res (intersect-ray-sphere r sp)]) (and res (list? res) (= (length res) 2) (< (abs (- (car res) 15.0)) 0.001) (< (abs (- (cadr res) 25.0)) 0.001)))",
+    "intersect-ray-aabb": "(let* ([r (ray3 (vec3 0 0 -10) (vec3 0 0 1))] [box (aabb (vec3 -1 -1 -1) (vec3 1 1 1))] [res (intersect-ray-aabb r box)]) (and res (list? res) (= (length res) 2) (< (abs (- (car res) 9.0)) 0.001) (< (abs (- (cadr res) 11.0)) 0.001)))",
+    "intersect-ray-triangle": "(let* ([r (ray3 (vec3 0.25 0.25 -5) (vec3 0 0 1))] [tri (triangle3 (vec3 0 0 0) (vec3 1 0 0) (vec3 0 1 0))] [t (intersect-ray-triangle r tri)]) (and t (< (abs (- t 5.0)) 0.001)))",
+    "point-in-sphere?": "(let* ([pt (vec3 1 1 1)] [sp (sphere (vec3 0 0 0) 10)]) (point-in-sphere? pt sp))",
+    "point-in-aabb?": "(let* ([pt (vec3 0 0 0)] [box (aabb (vec3 -1 -1 -1) (vec3 1 1 1))]) (point-in-aabb? pt box))",
+    "point-in-triangle?": "(let* ([pt (vec3 0.25 0.25 0)] [tri (triangle3 (vec3 0 0 0) (vec3 1 0 0) (vec3 0 1 0))]) (point-in-triangle? pt tri))",
+    "closest-point-on-line": "(let* ([pt (vec3 5 10 0)] [ln (line3 (vec3 0 0 0) (vec3 1 0 0))] [cp (closest-point-on-line pt ln)]) (and (< (abs (- (vec3-x cp) 5)) 0.001) (< (abs (vec3-y cp)) 0.001) (< (abs (vec3-z cp)) 0.001)))",
+    "closest-point-on-plane": "(let* ([pt (vec3 5 10 5)] [pl (plane3 (vec3 0 1 0) 0)] [cp (closest-point-on-plane pt pl)]) (and (< (abs (- (vec3-x cp) 5)) 0.001) (< (abs (vec3-y cp)) 0.001) (< (abs (- (vec3-z cp) 5)) 0.001)))",
+    "closest-point-on-aabb": "(let* ([pt (vec3 20 5 5)] [box (aabb (vec3 0 0 0) (vec3 10 10 10))] [cp (closest-point-on-aabb pt box)]) (and (< (abs (- (vec3-x cp) 10)) 0.001) (< (abs (- (vec3-y cp) 5)) 0.001) (< (abs (- (vec3-z cp) 5)) 0.001)))",
+    "triangle-area": "(let* ([tri (triangle3 (vec3 0 0 0) (vec3 2 0 0) (vec3 0 2 0))] [a (triangle-area tri)]) (< (abs (- a 2.0)) 0.001))",
+    "sphere-volume": "(let* ([sp (sphere (vec3 0 0 0) 1)] [v (sphere-volume sp)]) (< (abs (- v 4.18879)) 0.001))",
+    "sphere-surface-area": "(let* ([sp (sphere (vec3 0 0 0) 1)] [a (sphere-surface-area sp)]) (< (abs (- a 12.56637)) 0.001))",
+    "aabb-volume": "(let* ([box (aabb (vec3 0 0 0) (vec3 2 3 4))] [v (aabb-volume box)]) (< (abs (- v 24.0)) 0.001))",
+    "barycentric-coords": "(let* ([p (vec3 0 0 0)] [a (vec3 0 0 0)] [b (vec3 1 0 0)] [c (vec3 0 1 0)] [bc (barycentric-coords p a b c)]) (and (< (abs (- (car bc) 1.0)) 0.01) (< (abs (cadr bc)) 0.01) (< (abs (caddr bc)) 0.01)))",
+    "triangle-normal": "(let* ([tri (triangle3 (vec3 0 0 0) (vec3 1 0 0) (vec3 0 1 0))] [n (triangle-normal tri)]) (and (< (abs (vec3-x n)) 0.001) (< (abs (vec3-y n)) 0.001) (< (abs (- (vec3-z n) 1)) 0.001)))",
+    "aabb-merge": "(let* ([b1 (aabb (vec3 0 0 0) (vec3 1 1 1))] [b2 (aabb (vec3 2 2 2) (vec3 3 3 3))] [mg (aabb-merge b1 b2)]) (and (< (abs (vec3-x (aabb-min mg))) 0.001) (< (abs (- (vec3-x (aabb-max mg)) 3)) 0.001)))",
+    "aabb-from-points": "(let* ([pts (list (vec3 -1 5 2) (vec3 3 -2 8) (vec3 0 0 0))] [box (aabb-from-points pts)]) (and (< (abs (- (vec3-x (aabb-min box)) -1)) 0.001) (< (abs (- (vec3-x (aabb-max box)) 3)) 0.001)))",
+    "vec3-to-spherical": "(let* ([v (vec3 1 0 0)] [sph (vec3-to-spherical v)]) (and (< (abs (- (car sph) 1.0)) 0.001) (< (abs (- (cadr sph) 1.5708)) 0.001) (< (abs (caddr sph)) 0.001)))",
+    "vec3-to-cylindrical": "(let* ([v (vec3 1 0 5)] [cyl (vec3-to-cylindrical v)]) (and (< (abs (- (car cyl) 1.0)) 0.001) (< (abs (cadr cyl)) 0.001) (< (abs (- (caddr cyl) 5)) 0.001)))"
+  },
+  "function_specs": {
+    "point3": {
+      "sig": "(point3 x y z)",
+      "desc": "Point3 is just a Vec3",
+      "params": "x, y, z: Numbers"
+    },
+    "line3": {
+      "sig": "(line3 origin direction)",
+      "desc": "Infinite line through origin in direction",
+      "params": "origin, direction: Vec3"
+    },
+    "line3?": {
+      "sig": "(line3? l)",
+      "desc": "Return #t iff l is a line3",
+      "params": "l: any"
+    },
+    "line3-origin": {
+      "sig": "(line3-origin l)",
+      "desc": "Get origin of line3",
+      "params": "l: Line3"
+    },
+    "line3-direction": {
+      "sig": "(line3-direction l)",
+      "desc": "Get direction of line3",
+      "params": "l: Line3"
+    },
+    "ray3": {
+      "sig": "(ray3 origin direction)",
+      "desc": "Half-infinite ray starting at origin going in direction",
+      "params": "origin, direction: Vec3"
+    },
+    "ray3?": {
+      "sig": "(ray3? r)",
+      "desc": "Return #t iff r is a ray3",
+      "params": "r: any"
+    },
+    "ray3-origin": {
+      "sig": "(ray3-origin r)",
+      "desc": "Get origin of ray3",
+      "params": "r: Ray3"
+    },
+    "ray3-direction": {
+      "sig": "(ray3-direction r)",
+      "desc": "Get direction of ray3",
+      "params": "r: Ray3"
+    },
+    "ray3-point-at": {
+      "sig": "(ray3-point-at ray t)",
+      "desc": "Get point at parameter t along ray (t >= 0)",
+      "params": "ray: Ray3, t: Number"
+    },
+    "plane3": {
+      "sig": "(plane3 normal d)",
+      "desc": "Plane defined by normal\u00b7p + d = 0",
+      "params": "normal: Vec3, d: Number"
+    },
+    "plane3?": {
+      "sig": "(plane3? p)",
+      "desc": "Return #t iff p is a plane3",
+      "params": "p: any"
+    },
+    "plane3-normal": {
+      "sig": "(plane3-normal p)",
+      "desc": "Get normal of plane3",
+      "params": "p: Plane3"
+    },
+    "plane3-d": {
+      "sig": "(plane3-d p)",
+      "desc": "Get d coefficient of plane3",
+      "params": "p: Plane3"
+    },
+    "plane3-from-point-normal": {
+      "sig": "(plane3-from-point-normal point normal)",
+      "desc": "Create plane from point and normal",
+      "params": "point: Point3, normal: Vec3"
+    },
+    "plane3-from-points": {
+      "sig": "(plane3-from-points p1 p2 p3)",
+      "desc": "Create plane from three points (returns error if collinear)",
+      "params": "p1, p2, p3: Point3"
+    },
+    "triangle3": {
+      "sig": "(triangle3 p1 p2 p3)",
+      "desc": "Create triangle from three points",
+      "params": "p1, p2, p3: Vec3"
+    },
+    "triangle3?": {
+      "sig": "(triangle3? t)",
+      "desc": "Return #t iff t is a triangle3",
+      "params": "t: any"
+    },
+    "triangle3-p1": {
+      "sig": "(triangle3-p1 t)",
+      "desc": "Get first vertex of triangle3",
+      "params": "t: Triangle3"
+    },
+    "triangle3-p2": {
+      "sig": "(triangle3-p2 t)",
+      "desc": "Get second vertex of triangle3",
+      "params": "t: Triangle3"
+    },
+    "triangle3-p3": {
+      "sig": "(triangle3-p3 t)",
+      "desc": "Get third vertex of triangle3",
+      "params": "t: Triangle3"
+    },
+    "circle": {
+      "sig": "(circle center radius)",
+      "desc": "Create 2D circle",
+      "params": "center: Vec2, radius: Number"
+    },
+    "circle?": {
+      "sig": "(circle? c)",
+      "desc": "Return #t iff c is a circle",
+      "params": "c: any"
+    },
+    "circle-center": {
+      "sig": "(circle-center c)",
+      "desc": "Get center of circle",
+      "params": "c: Circle"
+    },
+    "circle-radius": {
+      "sig": "(circle-radius c)",
+      "desc": "Get radius of circle",
+      "params": "c: Circle"
+    },
+    "sphere": {
+      "sig": "(sphere center radius)",
+      "desc": "Create sphere",
+      "params": "center: Vec3, radius: Number"
+    },
+    "sphere?": {
+      "sig": "(sphere? s)",
+      "desc": "Return #t iff s is a sphere",
+      "params": "s: any"
+    },
+    "sphere-center": {
+      "sig": "(sphere-center s)",
+      "desc": "Get center of sphere",
+      "params": "s: Sphere"
+    },
+    "sphere-radius": {
+      "sig": "(sphere-radius s)",
+      "desc": "Get radius of sphere",
+      "params": "s: Sphere"
+    },
+    "aabb": {
+      "sig": "(aabb min-point max-point)",
+      "desc": "Axis-Aligned Bounding Box from min/max corners",
+      "params": "min-point, max-point: Vec3"
+    },
+    "aabb?": {
+      "sig": "(aabb? b)",
+      "desc": "Return #t iff b is an aabb",
+      "params": "b: any"
+    },
+    "aabb-min": {
+      "sig": "(aabb-min b)",
+      "desc": "Get min corner of aabb",
+      "params": "b: AABB"
+    },
+    "aabb-max": {
+      "sig": "(aabb-max b)",
+      "desc": "Get max corner of aabb",
+      "params": "b: AABB"
+    },
+    "aabb-center": {
+      "sig": "(aabb-center box)",
+      "desc": "Get center point of aabb",
+      "params": "box: AABB"
+    },
+    "aabb-extents": {
+      "sig": "(aabb-extents box)",
+      "desc": "Get half-size in each dimension (extents)",
+      "params": "box: AABB"
+    },
+    "obb": {
+      "sig": "(obb center axes extents)",
+      "desc": "Oriented Bounding Box from center, axes, and extents",
+      "params": "center: Vec3, axes: List of 3 Vec3, extents: Vec3"
+    },
+    "obb?": {
+      "sig": "(obb? b)",
+      "desc": "Return #t iff b is an obb",
+      "params": "b: any"
+    },
+    "obb-center": {
+      "sig": "(obb-center b)",
+      "desc": "Get center of obb",
+      "params": "b: OBB"
+    },
+    "obb-axes": {
+      "sig": "(obb-axes b)",
+      "desc": "Get axes of obb",
+      "params": "b: OBB"
+    },
+    "obb-extents": {
+      "sig": "(obb-extents b)",
+      "desc": "Get extents of obb",
+      "params": "b: OBB"
+    },
+    "transform-identity": {
+      "sig": "(transform-identity)",
+      "desc": "Return 4x4 identity transformation matrix",
+      "params": "none"
+    },
+    "transform-translation": {
+      "sig": "(transform-translation v)",
+      "desc": "Return 4x4 translation matrix",
+      "params": "v: Vec3"
+    },
+    "transform-scale": {
+      "sig": "(transform-scale s)",
+      "desc": "Return 4x4 scale matrix (uniform if number, non-uniform if vec3)",
+      "params": "s: Number or Vec3"
+    },
+    "transform-rotation-x": {
+      "sig": "(transform-rotation-x angle)",
+      "desc": "Return 4x4 rotation matrix around x-axis",
+      "params": "angle: Number (radians)"
+    },
+    "transform-rotation-y": {
+      "sig": "(transform-rotation-y angle)",
+      "desc": "Return 4x4 rotation matrix around y-axis",
+      "params": "angle: Number (radians)"
+    },
+    "transform-rotation-z": {
+      "sig": "(transform-rotation-z angle)",
+      "desc": "Return 4x4 rotation matrix around z-axis",
+      "params": "angle: Number (radians)"
+    },
+    "transform-rotation-axis": {
+      "sig": "(transform-rotation-axis axis angle)",
+      "desc": "Return 4x4 rotation matrix around arbitrary axis (Rodriguez formula)",
+      "params": "axis: Vec3, angle: Number (radians)"
+    },
+    "transform-from-quaternion": {
+      "sig": "(transform-from-quaternion q)",
+      "desc": "Convert quaternion to 4x4 transformation matrix",
+      "params": "q: Quaternion"
+    },
+    "transform-point": {
+      "sig": "(transform-point mat p)",
+      "desc": "Apply transformation to point (with translation)",
+      "params": "mat: Matrix, p: Point3"
+    },
+    "transform-vector": {
+      "sig": "(transform-vector mat v)",
+      "desc": "Apply transformation to vector (no translation)",
+      "params": "mat: Matrix, v: Vec3"
+    },
+    "distance-point-point": {
+      "sig": "(distance-point-point p1 p2)",
+      "desc": "Return Euclidean distance between two points",
+      "params": "p1, p2: Point3"
+    },
+    "distance-point-plane": {
+      "sig": "(distance-point-plane point plane)",
+      "desc": "Return signed distance from point to plane (positive = in front)",
+      "params": "point: Point3, plane: Plane3"
+    },
+    "distance-point-line": {
+      "sig": "(distance-point-line point line)",
+      "desc": "Return distance from point to infinite line",
+      "params": "point: Point3, line: Line3"
+    },
+    "distance-point-sphere": {
+      "sig": "(distance-point-sphere point sphere)",
+      "desc": "Return signed distance from point to sphere (negative if inside)",
+      "params": "point: Point3, sphere: Sphere"
+    },
+    "intersect-ray-plane": {
+      "sig": "(intersect-ray-plane ray plane)",
+      "desc": "Return t parameter where ray intersects plane, or #f",
+      "params": "ray: Ray3, plane: Plane3"
+    },
+    "intersect-ray-sphere": {
+      "sig": "(intersect-ray-sphere ray sphere)",
+      "desc": "Return (t1 t2) intersection parameters, or #f",
+      "params": "ray: Ray3, sphere: Sphere"
+    },
+    "intersect-ray-aabb": {
+      "sig": "(intersect-ray-aabb ray box)",
+      "desc": "Return (tmin tmax) intersection parameters, or #f",
+      "params": "ray: Ray3, box: AABB"
+    },
+    "intersect-ray-triangle": {
+      "sig": "(intersect-ray-triangle ray tri)",
+      "desc": "Return t parameter where ray intersects triangle (M\u00f6ller-Trumbore), or #f",
+      "params": "ray: Ray3, tri: Triangle3"
+    },
+    "point-in-sphere?": {
+      "sig": "(point-in-sphere? point sphere)",
+      "desc": "Return #t iff point is inside or on sphere",
+      "params": "point: Point3, sphere: Sphere"
+    },
+    "point-in-aabb?": {
+      "sig": "(point-in-aabb? point box)",
+      "desc": "Return #t iff point is inside or on aabb",
+      "params": "point: Point3, box: AABB"
+    },
+    "point-in-triangle?": {
+      "sig": "(point-in-triangle? point tri)",
+      "desc": "Return #t iff point is inside triangle (point must be coplanar)",
+      "params": "point: Point3, tri: Triangle3"
+    },
+    "closest-point-on-line": {
+      "sig": "(closest-point-on-line point line)",
+      "desc": "Return closest point on infinite line to given point",
+      "params": "point: Point3, line: Line3"
+    },
+    "closest-point-on-plane": {
+      "sig": "(closest-point-on-plane point plane)",
+      "desc": "Return closest point on plane to given point",
+      "params": "point: Point3, plane: Plane3"
+    },
+    "closest-point-on-aabb": {
+      "sig": "(closest-point-on-aabb point box)",
+      "desc": "Return closest point on aabb to given point",
+      "params": "point: Point3, box: AABB"
+    },
+    "triangle-area": {
+      "sig": "(triangle-area tri)",
+      "desc": "Return area of triangle",
+      "params": "tri: Triangle3"
+    },
+    "sphere-volume": {
+      "sig": "(sphere-volume sphere)",
+      "desc": "Return volume of sphere",
+      "params": "sphere: Sphere"
+    },
+    "sphere-surface-area": {
+      "sig": "(sphere-surface-area sphere)",
+      "desc": "Return surface area of sphere",
+      "params": "sphere: Sphere"
+    },
+    "aabb-volume": {
+      "sig": "(aabb-volume box)",
+      "desc": "Return volume of aabb",
+      "params": "box: AABB"
+    },
+    "barycentric-coords": {
+      "sig": "(barycentric-coords p a b c)",
+      "desc": "Compute barycentric coordinates (u, v, w) of p w.r.t. triangle (a, b, c)",
+      "params": "p, a, b, c: Point3"
+    },
+    "triangle-normal": {
+      "sig": "(triangle-normal tri)",
+      "desc": "Compute face normal of triangle (counter-clockwise winding)",
+      "params": "tri: Triangle3"
+    },
+    "aabb-merge": {
+      "sig": "(aabb-merge b1 b2)",
+      "desc": "Compute minimal AABB containing both boxes",
+      "params": "b1, b2: AABB"
+    },
+    "aabb-from-points": {
+      "sig": "(aabb-from-points points)",
+      "desc": "Compute minimal AABB containing all points",
+      "params": "points: List of Point3"
+    },
+    "vec3-to-spherical": {
+      "sig": "(vec3-to-spherical v)",
+      "desc": "Convert Cartesian to spherical (r, \u03b8, \u03c6)",
+      "params": "v: Vec3"
+    },
+    "vec3-to-cylindrical": {
+      "sig": "(vec3-to-cylindrical v)",
+      "desc": "Convert Cartesian to cylindrical (r, \u03b8, z)",
+      "params": "v: Vec3"
+    }
+  }
+}
