@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 
 FAMILY_PREFIXES: Dict[str, List[str]] = {
@@ -82,6 +82,32 @@ CATEGORY_HINTS: Dict[str, List[str]] = {
 }
 
 LET_FORMS = {"let", "let*", "letrec", "letrec*"}
+CALL_HEAD_RE = re.compile(r"\(\s*([^\s()]+)")
+CALLABLE_HEAD_RE = re.compile(r"[A-Za-z][A-Za-z0-9\-+*/<>=!?._:]*$")
+SPECIAL_FORMS = {
+    "begin",
+    "call-with-values",
+    "case",
+    "cond",
+    "define",
+    "define-record-type",
+    "define-syntax",
+    "do",
+    "else",
+    "if",
+    "lambda",
+    "let",
+    "let*",
+    "let-values",
+    "letrec",
+    "letrec*",
+    "or",
+    "and",
+    "quote",
+    "quasiquote",
+    "set!",
+    "unquote",
+}
 
 
 def _stable_index(key: str, size: int) -> int:
@@ -225,6 +251,37 @@ def _extract_last_let_body_form(expr: str) -> str:
     return body[-1].strip()
 
 
+def _parse_top_level_let(expr: str):
+    expr = expr.strip()
+    if not expr.startswith("("):
+        return None
+    close = _find_matching_paren(expr, 0)
+    if close != len(expr) - 1:
+        return None
+
+    inner = expr[1:close].strip()
+    parts = _split_top_level_forms(inner)
+    if not parts or parts[0] not in LET_FORMS:
+        return None
+    if len(parts) < 3:
+        return None
+
+    form = parts[0]
+    if parts[1].startswith("("):
+        name = ""
+        bindings = parts[1]
+        body = parts[2:]
+        return form, name, bindings, body
+
+    if len(parts) >= 4 and parts[2].startswith("("):
+        name = parts[1]
+        bindings = parts[2]
+        body = parts[3:]
+        return form, name, bindings, body
+
+    return None
+
+
 def _normalize_check(expr: str) -> str:
     flat = re.sub(r"\s+", " ", expr).strip()
     return flat
@@ -234,7 +291,13 @@ def _extract_checks(verify_expr: str, max_checks: int = 2, max_check_len: int = 
     if not verify_expr.strip():
         return []
 
-    core = _extract_last_let_body_form(verify_expr)
+    let_ctx = _parse_top_level_let(verify_expr)
+    if let_ctx:
+        form, name, bindings, body = let_ctx
+        core = body[-1].strip() if body else verify_expr.strip()
+    else:
+        core = verify_expr.strip()
+
     if not core.startswith("("):
         candidate = _normalize_check(core)
         return [candidate] if len(candidate) <= max_check_len else []
@@ -260,6 +323,11 @@ def _extract_checks(verify_expr: str, max_checks: int = 2, max_check_len: int = 
         cand = cand.strip()
         if not cand or cand.startswith("(define"):
             continue
+        if let_ctx:
+            if name:
+                cand = f"({form} {name} {bindings} {cand})"
+            else:
+                cand = f"({form} {bindings} {cand})"
         normalized = _normalize_check(cand)
         if len(normalized) > max_check_len:
             continue
@@ -283,6 +351,138 @@ def _format_checks_block(title: str, checks: List[str]) -> str:
         return ""
     lines = "\n".join(checks)
     return f"{title}:\n```scheme\n{lines}\n```"
+
+
+def _extract_known_issue(prompt: str) -> str:
+    match = re.search(r"Known issue:\s*(.+)", prompt)
+    if not match:
+        return ""
+    issue = " ".join(match.group(1).split())
+    if len(issue) > 220:
+        return issue[:217].rstrip() + "..."
+    return issue
+
+
+def _extract_call_heads(expr: str) -> List[str]:
+    seen = set()
+    names: List[str] = []
+    for match in CALL_HEAD_RE.finditer(expr):
+        head = match.group(1).strip()
+        head = head.lstrip("',`")
+        if not head:
+            continue
+        if head[0] in {'"', "[", "]"}:
+            continue
+        if head.startswith("#"):
+            continue
+        if head in SPECIAL_FORMS:
+            continue
+        if not CALLABLE_HEAD_RE.fullmatch(head):
+            continue
+        if not any(ch.isalpha() for ch in head):
+            continue
+        if len(head) == 1 and head.isalpha():
+            continue
+        if head in seen:
+            continue
+        seen.add(head)
+        names.append(head)
+    return names
+
+
+def _infer_composition_functions(
+    source_function: str,
+    ground_truth: str,
+    available_functions: Sequence[str] | None,
+    max_items: int = 5,
+) -> List[str]:
+    calls = _extract_call_heads(ground_truth)
+    selected: List[str] = []
+    seen = set()
+
+    def push(name: str) -> None:
+        if name and name not in seen:
+            seen.add(name)
+            selected.append(name)
+
+    push(source_function)
+
+    if available_functions:
+        allowed = set(available_functions)
+        for name in calls:
+            if name in allowed:
+                push(name)
+            if len(selected) >= max_items:
+                break
+    else:
+        for name in calls:
+            push(name)
+            if len(selected) >= max_items:
+                break
+
+    return selected[:max_items]
+
+
+def _build_bugfix_overlay(key: str, prompt: str, verify_expr: str) -> str:
+    checks = _extract_checks(verify_expr, max_checks=1, max_check_len=420)
+    if not checks:
+        return ""
+    if _stable_index(f"{key}|bugfix_overlay", 2) == 0:
+        return ""
+
+    issue = _extract_known_issue(prompt)
+    issue_line = (
+        f"Bug report summary: {issue}"
+        if issue
+        else "Bug report summary: the current implementation violates required behavior."
+    )
+    return (
+        f"{issue_line}\n\n"
+        + _format_checks_block("Expected behavior after patch", checks)
+        + "\n\nActual behavior: the provided implementation fails the expectation above."
+    )
+
+
+def _build_composition_overlay(
+    key: str,
+    source_function: str,
+    ground_truth: str,
+    available_functions: Sequence[str] | None,
+) -> str:
+    if _stable_index(f"{key}|composition_overlay", 2) == 0:
+        return ""
+
+    funcs = _infer_composition_functions(
+        source_function=source_function,
+        ground_truth=ground_truth,
+        available_functions=available_functions,
+        max_items=5,
+    )
+    if len(funcs) < 2:
+        return ""
+
+    lines = "\n".join(f"- `{name}`" for name in funcs)
+    return (
+        "Available functions you may compose:\n"
+        f"{lines}\n\n"
+        "Prefer using this API inventory directly instead of re-implementing behavior."
+    )
+
+
+def _build_family_overlay(
+    prompt: str,
+    family: str,
+    key: str,
+    source_function: str,
+    verify_expr: str,
+    ground_truth: str,
+    available_functions: Sequence[str] | None,
+) -> str:
+    if family == "bugfix":
+        return _build_bugfix_overlay(key, prompt, verify_expr)
+    if family == "composition":
+        return _build_composition_overlay(key, source_function, ground_truth, available_functions)
+    return ""
 
 
 def _build_task_type_frame(family: str, key: str, verify_expr: str) -> str:
@@ -330,6 +530,8 @@ def diversify_prompt(
     sample_index: int,
     category: str,
     verify_expr: str = "",
+    ground_truth: str = "",
+    available_functions: Sequence[str] | None = None,
 ) -> str:
     """Add deterministic wording/task-frame diversity while preserving semantics."""
     text = prompt.strip()
@@ -341,6 +543,17 @@ def diversify_prompt(
 
     hint = _pick(CATEGORY_HINTS.get(category, []), f"{key}|hint")
     text = _append_if_missing(text, hint)
+
+    family_overlay = _build_family_overlay(
+        prompt=text,
+        family=family,
+        key=key,
+        source_function=source_function,
+        verify_expr=verify_expr,
+        ground_truth=ground_truth,
+        available_functions=available_functions,
+    )
+    text = _append_if_missing(text, family_overlay)
 
     task_type_frame = _build_task_type_frame(family, key, verify_expr)
     text = _append_if_missing(text, task_type_frame)

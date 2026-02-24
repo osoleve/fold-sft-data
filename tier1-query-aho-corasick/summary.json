@@ -1,0 +1,42 @@
+{
+  "total": 96,
+  "train": 79,
+  "eval": 17,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 6,
+      "train": 26
+    },
+    "spec_to_code": {
+      "total": 24,
+      "eval": 4,
+      "train": 20
+    },
+    "translation": {
+      "total": 24,
+      "eval": 4,
+      "train": 20
+    }
+  },
+  "difficulty": {
+    "easy": 19,
+    "hard": 31,
+    "medium": 46
+  },
+  "source_functions": {
+    "bfs-mut!": 12,
+    "build-trie": 12,
+    "compute-failures": 12,
+    "find-fail": 12,
+    "get-next": 12,
+    "insert-pattern-mut!": 12,
+    "make-automaton": 12,
+    "search": 12
+  }
+}

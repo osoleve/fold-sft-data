@@ -1,0 +1,42 @@
+{
+  "total": 96,
+  "train": 79,
+  "eval": 17,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 6,
+      "train": 26
+    },
+    "spec_to_code": {
+      "total": 24,
+      "eval": 4,
+      "train": 20
+    },
+    "translation": {
+      "total": 24,
+      "eval": 4,
+      "train": 20
+    }
+  },
+  "difficulty": {
+    "easy": 20,
+    "hard": 31,
+    "medium": 45
+  },
+  "source_functions": {
+    "extract-tag-positions": 12,
+    "extract-tags": 12,
+    "format-tag": 12,
+    "has-path-traversal?": 12,
+    "parse-tag-at": 12,
+    "safe-extract-tags": 12,
+    "tags->string": 12,
+    "valid-tag-key?": 12
+  }
+}

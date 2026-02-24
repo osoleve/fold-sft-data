@@ -26,6 +26,12 @@ sft_prompt_diversity.py          # Shared deterministic prompt diversification
     README.md                    # Dataset-specific documentation
 ```
 
+## Methodology
+
+General build/maintenance/expansion playbook for these datasets:
+
+- [`SFT_DATASET_METHODOLOGY.md`](SFT_DATASET_METHODOLOGY.md)
+
 ## Datasets
 
 ### Core Base
@@ -74,6 +80,40 @@ sft_prompt_diversity.py          # Shared deterministic prompt diversification
 |---------|---------|-----------|--------------|
 | `tier1-meta-kg-usage` | 80 | 8 | `lattice/meta/search.ss` |
 | `tier1-meta-kg-ingest` | 80 | 8 | `lattice/meta/kg-ingest.ss` |
+
+### Functional Programming (Tier 1)
+| Dataset | Samples | Functions | Source Module |
+|---------|---------|-----------|--------------|
+| `tier1-fp-meta-combinators` | 80 | 8 | `lattice/fp/meta/combinators.ss` |
+| `tier1-fp-parsing-fsm` | 80 | 8 | `lattice/fp/parsing/fsm.ss` |
+| `tier1-fp-parsing-regex-parser` | 80 | 8 | `lattice/fp/parsing/regex.ss` |
+| `tier1-fp-parsing-parser-compile` | 96 | 8 | `lattice/fp/parsing/parser-compile.ss` |
+
+### Query / Info / Random / Egraph (Tier 1)
+| Dataset | Samples | Functions | Source Module |
+|---------|---------|-----------|--------------|
+| `tier1-query-query-dsl` | 80 | 8 | `lattice/query/query-dsl.ss` |
+| `tier1-query-patterns-parse` | 96 | 8 | `lattice/query/patterns-parse.ss` |
+| `tier1-query-aho-corasick` | 96 | 8 | `lattice/query/aho-corasick.ss` |
+| `tier1-random-prng` | 80 | 8 | `lattice/random/prng.ss` |
+| `tier1-random-distributions` | 80 | 8 | `lattice/random/distributions.ss` |
+| `tier1-random-probability` | 80 | 8 | `lattice/random/probability.ss` |
+| `tier1-info-entropy` | 80 | 8 | `lattice/info/entropy.ss` |
+| `tier1-info-model-selection` | 80 | 8 | `lattice/info/model-selection.ss` |
+| `tier1-info-partition-info` | 80 | 8 | `lattice/info/partition-info.ss` |
+| `tier1-info-statistical-measures` | 80 | 8 | `lattice/info/statistical-measures.ss` |
+| `tier1-egraph-union-find` | 80 | 8 | `lattice/egraph/union-find.ss` |
+| `tier1-egraph-egraph` | 80 | 8 | `lattice/egraph/egraph.ss` |
+
+### Next Uncovered Targets
+High-value uncovered modules with strong tests and compact APIs:
+
+| Candidate Module | Why It Is A Good SFT Target |
+|------------------|------------------------------|
+| `lattice/egraph/match.ss` | Core e-graph reasoning primitive with rich substitution and rewrite behaviors. |
+| `lattice/egraph/extract.ss` | Teaches extraction of cheapest terms from equivalence classes, pairing well with existing egraph datasets. |
+| `lattice/info/empirical-info.ss` | Compact information-theoretic estimators useful for finite-sample modeling tasks. |
+| `lattice/info/channel-capacity.ss` | Well-scoped Shannon-capacity computations with strong mathematical supervision signals. |
 
 ## Usage
 
