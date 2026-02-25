@@ -1,0 +1,44 @@
+{
+  "total": 130,
+  "train": 105,
+  "eval": 25,
+  "families": {
+    "bugfix": {
+      "total": 20,
+      "eval": 4,
+      "train": 16
+    },
+    "composition": {
+      "total": 50,
+      "eval": 9,
+      "train": 41
+    },
+    "spec_to_code": {
+      "total": 30,
+      "eval": 6,
+      "train": 24
+    },
+    "translation": {
+      "total": 30,
+      "eval": 6,
+      "train": 24
+    }
+  },
+  "difficulty": {
+    "easy": 34,
+    "hard": 36,
+    "medium": 60
+  },
+  "source_functions": {
+    "make-identity-migration": 13,
+    "make-migration": 13,
+    "make-migration-from-functions": 13,
+    "migrate": 13,
+    "migration-apply": 13,
+    "migration-chain": 13,
+    "migration-compose": 13,
+    "migration-flip": 13,
+    "rollback": 13,
+    "verify-migration-laws": 13
+  }
+}

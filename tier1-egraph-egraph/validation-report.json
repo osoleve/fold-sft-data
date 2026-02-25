@@ -1,0 +1,31 @@
+{
+  "status": "ok",
+  "summary": {
+    "total": 80,
+    "families": {
+      "bugfix": 16,
+      "composition": 32,
+      "spec_to_code": 16,
+      "translation": 16
+    },
+    "difficulty": {
+      "easy": 16,
+      "hard": 32,
+      "medium": 32
+    },
+    "splits": {
+      "eval": 14,
+      "train": 66
+    },
+    "source_functions": {
+      "egraph-add-enode!": 10,
+      "egraph-add-term!": 10,
+      "egraph-find": 10,
+      "egraph-lookup": 10,
+      "egraph-merge!": 10,
+      "egraph-rebuild!": 10,
+      "egraph?": 10,
+      "make-egraph": 10
+    }
+  }
+}

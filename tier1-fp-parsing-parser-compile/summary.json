@@ -5,23 +5,23 @@
   "families": {
     "bugfix": {
       "total": 16,
-      "eval": 3,
-      "train": 13
+      "eval": 2,
+      "train": 14
     },
     "composition": {
       "total": 32,
-      "eval": 6,
-      "train": 26
+      "eval": 9,
+      "train": 23
     },
     "spec_to_code": {
       "total": 24,
-      "eval": 4,
-      "train": 20
+      "eval": 3,
+      "train": 21
     },
     "translation": {
       "total": 24,
-      "eval": 4,
-      "train": 20
+      "eval": 3,
+      "train": 21
     }
   },
   "difficulty": {

@@ -1,0 +1,42 @@
+{
+  "total": 96,
+  "train": 79,
+  "eval": 17,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 2,
+      "train": 14
+    },
+    "composition": {
+      "total": 32,
+      "eval": 9,
+      "train": 23
+    },
+    "spec_to_code": {
+      "total": 24,
+      "eval": 3,
+      "train": 21
+    },
+    "translation": {
+      "total": 24,
+      "eval": 3,
+      "train": 21
+    }
+  },
+  "difficulty": {
+    "easy": 29,
+    "hard": 20,
+    "medium": 47
+  },
+  "source_functions": {
+    "epsilon-closure": 12,
+    "fsm-accepts?": 12,
+    "fsm-char": 12,
+    "fsm-complement": 12,
+    "fsm-delta": 12,
+    "fsm-literal": 12,
+    "fsm-move": 12,
+    "nfa->dfa": 12
+  }
+}

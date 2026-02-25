@@ -14,9 +14,10 @@ Each dataset targets a specific lattice module or skill tier. Generators produce
 ## Structure
 
 ```
-sft_prompt_diversity.py          # Shared deterministic prompt diversification
+sft_split_utils.py               # Leakage-aware deterministic split helper
+SFT_DATASET_METHODOLOGY.md       # General build/maintenance/QA playbook
 <dataset-name>/
-    generate_<name>_sft.py       # Deterministic generator
+    generate_<name>_sft.py       # Deterministic generator (emit prompt_body, then DSL-diversify)
     validate_<name>_sft.py       # Schema + executable validator (runs Chez Scheme)
     all.jsonl                    # Full dataset
     train.jsonl                  # Train split (~82%)
@@ -75,6 +76,12 @@ General build/maintenance/expansion playbook for these datasets:
 | `tier0-number-theory-modular` | 140 | 14 | `lattice/number-theory/modular.ss` |
 | `tier0-number-theory-primality` | 80 | 8 | `lattice/number-theory/primality.ss` |
 
+### Algebra / Geometry (Tier 0)
+| Dataset | Samples | Functions | Source Module |
+|---------|---------|-----------|--------------|
+| `tier0-algebra-polynomial` | 295 | 37 | `lattice/algebra/polynomial.ss` |
+| `tier0-geometry-geometry` | 694 | 74 | `lattice/geometry/geometry.ss` |
+
 ### Meta / Knowledge Graph (Tier 1)
 | Dataset | Samples | Functions | Source Module |
 |---------|---------|-----------|--------------|
@@ -85,9 +92,16 @@ General build/maintenance/expansion playbook for these datasets:
 | Dataset | Samples | Functions | Source Module |
 |---------|---------|-----------|--------------|
 | `tier1-fp-meta-combinators` | 80 | 8 | `lattice/fp/meta/combinators.ss` |
-| `tier1-fp-parsing-fsm` | 80 | 8 | `lattice/fp/parsing/fsm.ss` |
-| `tier1-fp-parsing-regex-parser` | 80 | 8 | `lattice/fp/parsing/regex.ss` |
+| `tier1-fp-parsing-fsm` | 96 | 8 | `lattice/fp/parsing/fsm.ss` |
+| `tier1-fp-parsing-regex-parser` | 96 | 8 | `lattice/fp/parsing/regex.ss` |
 | `tier1-fp-parsing-parser-compile` | 96 | 8 | `lattice/fp/parsing/parser-compile.ss` |
+
+### Optics (Tier 1)
+| Dataset | Samples | Functions | Source Module |
+|---------|---------|-----------|--------------|
+| `tier1-optics-profunctor-optics` | 80 | 8 | `lattice/optics/profunctor-optics.ss` |
+| `tier1-optics-core-optics` | 104 | 8 | `lattice/optics/optics.ss` |
+| `tier1-optics-bidirectional` | 130 | 10 | `lattice/optics/bidirectional.ss` |
 
 ### Query / Info / Random / Egraph (Tier 1)
 | Dataset | Samples | Functions | Source Module |
@@ -104,14 +118,14 @@ General build/maintenance/expansion playbook for these datasets:
 | `tier1-info-statistical-measures` | 80 | 8 | `lattice/info/statistical-measures.ss` |
 | `tier1-egraph-union-find` | 80 | 8 | `lattice/egraph/union-find.ss` |
 | `tier1-egraph-egraph` | 80 | 8 | `lattice/egraph/egraph.ss` |
+| `tier1-egraph-match` | 96 | 8 | `lattice/egraph/match.ss` |
+| `tier1-egraph-extract` | 96 | 8 | `lattice/egraph/extract.ss` |
 
 ### Next Uncovered Targets
 High-value uncovered modules with strong tests and compact APIs:
 
 | Candidate Module | Why It Is A Good SFT Target |
 |------------------|------------------------------|
-| `lattice/egraph/match.ss` | Core e-graph reasoning primitive with rich substitution and rewrite behaviors. |
-| `lattice/egraph/extract.ss` | Teaches extraction of cheapest terms from equivalence classes, pairing well with existing egraph datasets. |
 | `lattice/info/empirical-info.ss` | Compact information-theoretic estimators useful for finite-sample modeling tasks. |
 | `lattice/info/channel-capacity.ss` | Well-scoped Shannon-capacity computations with strong mathematical supervision signals. |
 
@@ -133,10 +147,14 @@ for d in */validate_*.py; do python3 "$d"; done
 
 ## Prompt Diversity
 
-`sft_prompt_diversity.py` adds deterministic wording variation to prompts via SHA256-stable selection from:
-- **Family prefixes**: 3 "Task mode:" openers per family
-- **Category hints**: domain-appropriate guidance lines
-- **Verify check blocks**: acceptance/regression checks extracted from `verify_expr`
-- **Family suffixes**: closing instructions
+Primary path (for new datasets): `user/sft/generate.ss` grammar DSL.
 
-All selection is deterministic — same inputs always produce the same prompt. ~64% of prompts include verify-derived check blocks; the rest omit them for natural variety.
+- Generators should emit pre-diversification `prompt_body`.
+- `generate.ss` derives a deterministic seed from sample `id` and expands the prompt grammar.
+- Split is preserved when input rows already include `split`; otherwise it is derived deterministically.
+- Composition prompts should be intent-only; do not inline verifier snippets (`Target properties`, `Behavior check`, fenced checks).
+- Prefer source-function-disjoint train/eval splits when rows share `ground_truth`/`verify_expr` structure.
+
+Legacy path: `sft_prompt_diversity.py` (kept for backward compatibility on older generators).
+
+New/updated generators should not rely on the legacy Python diversifier.

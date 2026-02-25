@@ -360,7 +360,7 @@ def dependency_closure(fn: str) -> List[str]:
 
 
 def def_verify(fn: str) -> str:
-    parts = [DEFS[d] for d in dependency_closure(fn)] + [DEFS[fn], VERIFY_BY_FUNCTION[fn]]
+    parts = [DEFS[d] for d in dependency_closure(fn)] + [VERIFY_BY_FUNCTION[fn]]
     body = "\n  ".join(parts)
     return f"(let ()\n  {body})"
 

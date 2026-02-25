@@ -35,4 +35,4 @@ python3 data/tier0-number-theory-modular/validate_modular_sft.py
 ```
 
 Validation includes per-sample executable checks (`verify_expr`) in Scheme.
-It also enforces that `eval.jsonl` covers every source function in this tier-0 module.
+It also enforces source-function-disjoint train/eval splits to prevent cross-split leakage.

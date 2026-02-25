@@ -254,9 +254,12 @@ def split_checks(train_rows: List[Dict[str, object]], eval_rows: List[Dict[str, 
     overlap = train_ids & eval_ids
     assert_true(not overlap, f"train/eval overlap: {sorted(list(overlap))[:10]}")
 
+    train_fns = {str(r["source_function"]) for r in train_rows}
     eval_fns = {str(r["source_function"]) for r in eval_rows}
-    missing = sorted(EXPECTED_SOURCE_FUNCTIONS - eval_fns)
-    assert_true(not missing, f"eval split missing source_function coverage: {missing}")
+    assert_true(bool(train_fns), "train split must contain source functions")
+    assert_true(bool(eval_fns), "eval split must contain source functions")
+    fn_overlap = train_fns & eval_fns
+    assert_true(not fn_overlap, f"source_function leakage across splits: {sorted(fn_overlap)}")
 
 
 def family_distribution_checks(rows: List[Dict[str, object]]) -> None:

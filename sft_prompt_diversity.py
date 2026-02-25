@@ -514,11 +514,8 @@ def _build_task_type_frame(family: str, key: str, verify_expr: str) -> str:
 
     if family == "composition":
         if mode == 1:
-            return _format_checks_block("Target properties for your expression", checks)
-        return (
-            "Expression-only output is required (no helper definitions).\n\n"
-            + _format_checks_block("Target properties for your expression", checks)
-        )
+            return "Expression-only output is required (no helper definitions)."
+        return "Use module APIs directly; avoid re-implementing internal logic."
 
     return ""
 

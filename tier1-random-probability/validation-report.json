@@ -1,0 +1,31 @@
+{
+  "status": "ok",
+  "summary": {
+    "total": 80,
+    "families": {
+      "bugfix": 16,
+      "composition": 32,
+      "spec_to_code": 16,
+      "translation": 16
+    },
+    "difficulty": {
+      "easy": 17,
+      "hard": 29,
+      "medium": 34
+    },
+    "splits": {
+      "eval": 14,
+      "train": 66
+    },
+    "source_functions": {
+      "log-sum-exp": 10,
+      "make-prob": 10,
+      "normalize-log-weights": 10,
+      "prob-bind": 10,
+      "prob?": 10,
+      "run-prob": 10,
+      "sample-prob": 10,
+      "weight-prob": 10
+    }
+  }
+}

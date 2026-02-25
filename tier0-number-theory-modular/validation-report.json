@@ -14,8 +14,8 @@
       "medium": 59
     },
     "splits": {
-      "eval": 20,
-      "train": 120
+      "eval": 29,
+      "train": 111
     }
   }
 }

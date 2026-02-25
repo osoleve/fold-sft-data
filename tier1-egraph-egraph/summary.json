@@ -1,0 +1,48 @@
+{
+  "total": 80,
+  "train": 66,
+  "eval": 14,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 5,
+      "train": 27
+    },
+    "spec_to_code": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "translation": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    }
+  },
+  "difficulty": {
+    "easy": 16,
+    "hard": 32,
+    "medium": 32
+  },
+  "source_functions": {
+    "egraph-add-enode!": 10,
+    "egraph-add-term!": 10,
+    "egraph-find": 10,
+    "egraph-lookup": 10,
+    "egraph-merge!": 10,
+    "egraph-rebuild!": 10,
+    "egraph?": 10,
+    "make-egraph": 10
+  },
+  "qa": {
+    "composition_source_function_check": "passed",
+    "non_tautological_verify_check": "passed",
+    "bugfix_strength_check": "passed",
+    "prompt_ground_truth_alignment_check": "passed"
+  }
+}

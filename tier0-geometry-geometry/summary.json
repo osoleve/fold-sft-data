@@ -1,27 +1,27 @@
 {
   "total": 694,
-  "train": 531,
-  "eval": 163,
+  "train": 572,
+  "eval": 122,
   "families": {
     "bugfix": {
       "total": 100,
-      "eval": 24,
-      "train": 76
+      "eval": 18,
+      "train": 82
     },
     "composition": {
       "total": 150,
-      "eval": 29,
-      "train": 121
+      "eval": 26,
+      "train": 124
     },
     "spec_to_code": {
       "total": 222,
-      "eval": 74,
-      "train": 148
+      "eval": 39,
+      "train": 183
     },
     "translation": {
       "total": 222,
-      "eval": 36,
-      "train": 186
+      "eval": 39,
+      "train": 183
     }
   },
   "difficulty": {

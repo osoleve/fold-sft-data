@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import re
 import subprocess
@@ -48,6 +49,7 @@ EXPECTED_SOURCE_FUNCTIONS = {
     "apply-rules",
 }
 TOKEN_RE = re.compile(r"[A-Za-z0-9!$%&*+./:<=>?@^_~-]+")
+SCHEME_FENCE_RE = re.compile(r"```scheme\s*(.*?)```", re.DOTALL)
 
 
 def load_jsonl(path: Path) -> List[Dict[str, object]]:
@@ -75,6 +77,46 @@ def quote_scheme_string(s: str) -> str:
 
 def normalize_ws(s: str) -> str:
     return " ".join(s.split())
+
+
+def strip_doc_forms_scheme(code: str) -> str:
+    lines = [line for line in code.splitlines() if not line.strip().startswith("(doc ")]
+    return "\n".join(lines)
+
+
+def extract_first_arg_from_binary_call(expr: str, op: str) -> str | None:
+    expr = expr.strip()
+    prefix = f"({op} "
+    if not expr.startswith(prefix):
+        return None
+
+    i = len(prefix)
+    start = i
+    depth = 0
+    in_string = False
+    escaped = False
+    while i < len(expr):
+        ch = expr[i]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+        else:
+            if ch == '"':
+                in_string = True
+            elif ch == "(":
+                depth += 1
+            elif ch == ")":
+                if depth == 0:
+                    return expr[start:i].strip()
+                depth -= 1
+            elif ch.isspace() and depth == 0:
+                return expr[start:i].strip()
+        i += 1
+    return None
 
 
 def defined_function_name(code: str) -> str | None:
@@ -126,7 +168,8 @@ def basic_checks(rows: List[Dict[str, object]]) -> None:
             raise ValueError(f"row {i}: unknown family {family}")
 
         if family == "bugfix":
-            assert_true("Known issue:" in str(prompt), f"row {i}: weak bugfix prompt (missing explicit issue)")
+            assert_true("Known issue:" in str(prompt_body), f"row {i}: weak bugfix prompt (missing explicit issue)")
+            assert_true(bool(SCHEME_FENCE_RE.search(str(prompt_body))), f"row {i}: bugfix prompt missing scheme fenced block")
 
         gt_norm = normalize_ws(str(gt))
         verify_norm = normalize_ws(str(verify))
@@ -141,6 +184,81 @@ def basic_checks(rows: List[Dict[str, object]]) -> None:
     prompt_dups = [x for x, c in Counter(prompts).items() if c > 1]
     assert_true(not id_dups, f"duplicate ids: {id_dups[:5]}")
     assert_true(not prompt_dups, f"duplicate prompts: {len(prompt_dups)} duplicates")
+
+
+def near_duplicate_prompt_checks(rows: List[Dict[str, object]]) -> None:
+    by_group: Dict[Tuple[str, str], List[Tuple[str, str]]] = {}
+    for row in rows:
+        key = (str(row["family"]), str(row["source_function"]))
+        by_group.setdefault(key, []).append((str(row["id"]), normalize_ws(str(row["prompt_body"]))))
+
+    near_dups: List[Tuple[str, str, float]] = []
+    for grouped in by_group.values():
+        for i in range(len(grouped)):
+            sid_a, prompt_a = grouped[i]
+            for j in range(i + 1, len(grouped)):
+                sid_b, prompt_b = grouped[j]
+                ratio = difflib.SequenceMatcher(a=prompt_a, b=prompt_b).ratio()
+                if ratio >= 0.985:
+                    near_dups.append((sid_a, sid_b, ratio))
+
+    assert_true(
+        not near_dups,
+        "near-duplicate prompts detected (ratio>=0.985): "
+        + ", ".join(f"{a}/{b}={r:.3f}" for a, b, r in near_dups[:8]),
+    )
+
+
+def composition_gt_verify_coherence_checks(rows: List[Dict[str, object]]) -> None:
+    bad: List[Tuple[str, str]] = []
+    for row in rows:
+        if str(row["family"]) != "composition":
+            continue
+        verify = str(row["verify_expr"]).strip()
+        gt_norm = normalize_ws(str(row["ground_truth"]))
+        op = ""
+        arg = None
+        for candidate in ("equal?", "="):
+            parsed = extract_first_arg_from_binary_call(verify, candidate)
+            if parsed is not None:
+                op = candidate
+                arg = parsed
+                break
+        if arg is None:
+            continue
+        if normalize_ws(arg) != gt_norm:
+            bad.append((str(row["id"]), op))
+
+    assert_true(
+        not bad,
+        "composition ground_truth/verify mismatch for wrapper-style checks: "
+        + ", ".join(f"{sid}({op})" for sid, op in bad[:8]),
+    )
+
+
+def trivial_chez_translation_checks(rows: List[Dict[str, object]]) -> None:
+    bad: List[Tuple[str, float]] = []
+    for row in rows:
+        if str(row["family"]) != "translation":
+            continue
+        tags = set(str(t) for t in row["tags"])
+        if "chez-to-fold" not in tags:
+            continue
+
+        prompt_body = str(row["prompt_body"])
+        match = SCHEME_FENCE_RE.search(prompt_body)
+        assert_true(match is not None, f"row {row['id']}: missing scheme block in chez-to-fold prompt")
+        chez_src = strip_doc_forms_scheme(match.group(1))
+        gt = strip_doc_forms_scheme(str(row["ground_truth"]))
+        ratio = difflib.SequenceMatcher(a=normalize_ws(chez_src), b=normalize_ws(gt)).ratio()
+        if ratio >= 0.95:
+            bad.append((str(row["id"]), ratio))
+
+    assert_true(
+        not bad,
+        "trivial chez-to-fold translations detected (similarity>=0.95): "
+        + ", ".join(f"{sid}={ratio:.3f}" for sid, ratio in bad[:8]),
+    )
 
 
 def split_checks(train_rows: List[Dict[str, object]], eval_rows: List[Dict[str, object]]) -> None:
@@ -228,6 +346,63 @@ def executable_checks(rows: List[Dict[str, object]], dataset_dir: Path) -> Tuple
         script_path.unlink(missing_ok=True)
 
 
+def extract_buggy_definition(prompt_body: str) -> str | None:
+    match = SCHEME_FENCE_RE.search(prompt_body)
+    if not match:
+        return None
+    return match.group(1).strip()
+
+
+def build_buggy_negative_script(buggy_def: str, verify_expr: str) -> str:
+    lines: List[str] = []
+    lines.append('(load "core/lang/module.ss")')
+    lines.append('(load "lattice/egraph/match.ss")')
+    lines.append("(define result")
+    lines.append("  (guard (ex [else 'exception])")
+    lines.append("    (begin")
+    lines.append(buggy_def)
+    lines.append(verify_expr)
+    lines.append("    )))")
+    lines.append("(if (equal? result #t)")
+    lines.append("    (begin (display \"BUGGY_VERIFY_TRUE\\n\") (exit 1))")
+    lines.append("    (begin (display \"BUGGY_VERIFY_FALSE_OR_EXCEPTION\\n\")))")
+    return "\n".join(lines) + "\n"
+
+
+def bugfix_negative_checks(rows: List[Dict[str, object]], dataset_dir: Path) -> None:
+    failures: List[str] = []
+    root_dir = dataset_dir.parent.parent
+
+    for row in rows:
+        if str(row["family"]) != "bugfix":
+            continue
+
+        sid = str(row["id"])
+        prompt_body = str(row["prompt_body"])
+        buggy_def = extract_buggy_definition(prompt_body)
+        assert_true(buggy_def is not None, f"bugfix row {sid}: unable to extract buggy definition")
+
+        script = build_buggy_negative_script(str(buggy_def), str(row["verify_expr"]))
+        script_path = dataset_dir / f".tmp_buggy_negative_{sid}.ss"
+        script_path.write_text(script, encoding="utf-8")
+        try:
+            proc = subprocess.run(
+                ["scheme", "--quiet", "--script", str(script_path)],
+                cwd=str(root_dir),
+                capture_output=True,
+                text=True,
+            )
+            if proc.returncode != 0:
+                failures.append(sid)
+        finally:
+            script_path.unlink(missing_ok=True)
+
+    assert_true(
+        not failures,
+        f"buggy implementations unexpectedly satisfy verify_expr: {failures[:8]}",
+    )
+
+
 def summarize(rows: List[Dict[str, object]]) -> Dict[str, object]:
     return {
         "total": len(rows),
@@ -265,6 +440,9 @@ def main() -> int:
     assert_true(len(joined_rows) == EXPECTED_TOTAL, f"unexpected total rows: {len(joined_rows)}")
 
     basic_checks(joined_rows)
+    near_duplicate_prompt_checks(joined_rows)
+    composition_gt_verify_coherence_checks(joined_rows)
+    trivial_chez_translation_checks(joined_rows)
     split_checks(train_rows, eval_rows)
     family_distribution_checks(joined_rows)
     source_function_distribution_checks(joined_rows)
@@ -276,6 +454,8 @@ def main() -> int:
         print(stdout, file=sys.stderr)
         print(stderr, file=sys.stderr)
         return 1
+
+    bugfix_negative_checks(joined_rows, dataset_dir)
 
     report = {
         "status": "ok",

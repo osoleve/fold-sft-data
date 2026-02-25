@@ -1,0 +1,42 @@
+{
+  "total": 80,
+  "train": 66,
+  "eval": 14,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "composition": {
+      "total": 32,
+      "eval": 5,
+      "train": 27
+    },
+    "spec_to_code": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    },
+    "translation": {
+      "total": 16,
+      "eval": 3,
+      "train": 13
+    }
+  },
+  "difficulty": {
+    "easy": 17,
+    "hard": 29,
+    "medium": 34
+  },
+  "source_functions": {
+    "log-sum-exp": 10,
+    "make-prob": 10,
+    "normalize-log-weights": 10,
+    "prob-bind": 10,
+    "prob?": 10,
+    "run-prob": 10,
+    "sample-prob": 10,
+    "weight-prob": 10
+  }
+}

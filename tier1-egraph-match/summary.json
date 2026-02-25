@@ -25,9 +25,9 @@
     }
   },
   "difficulty": {
-    "easy": 14,
-    "hard": 34,
-    "medium": 48
+    "easy": 26,
+    "hard": 32,
+    "medium": 38
   },
   "source_functions": {
     "apply-rule": 12,

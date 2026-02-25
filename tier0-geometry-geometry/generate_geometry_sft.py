@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import subprocess
@@ -18,8 +19,6 @@ DATA_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = DATA_ROOT.parent
 if str(DATA_ROOT) not in sys.path:
     sys.path.insert(0, str(DATA_ROOT))
-
-from sft_split_utils import compute_leakage_aware_eval_ids
 
 ALL_PATH = OUT_DIR / "all.jsonl"
 TRAIN_PATH = OUT_DIR / "train.jsonl"
@@ -932,36 +931,66 @@ if len(samples) != sum(expected_family_counts.values()):
     raise ValueError(f"unexpected total samples: {len(samples)}")
 
 EVAL_RATIO = 0.18
-EVAL_MIN_BY_FAMILY = {
-    "spec_to_code": 3,
-    "translation": 3,
-    "bugfix": 2,
-    "composition": 5,
-}
-
-eval_ids = compute_leakage_aware_eval_ids(
-    samples,
-    eval_ratio=EVAL_RATIO,
-    eval_min_by_family=EVAL_MIN_BY_FAMILY,
-    enforce_source_function_coverage=False,
-)
-
-# Enforce source-function coverage with a deterministic post-pass.
-id_to_sample: Dict[str, Dict[str, object]] = {str(s["id"]): s for s in samples}
 all_source_functions = sorted({str(s["source_function"]) for s in samples})
-missing_after = [
-    fn
-    for fn in all_source_functions
-    if not any(str(id_to_sample[sid]["source_function"]) == fn for sid in eval_ids)
-]
-if missing_after:
-    for fn in missing_after:
-        candidate = next(
-            (str(s["id"]) for s in samples if str(s["source_function"]) == fn and str(s["id"]) not in eval_ids),
-            None,
-        )
-        if candidate is not None:
-            eval_ids.add(candidate)
+
+
+def stable_hash_int(text: str) -> int:
+    digest = hashlib.sha256(text.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big")
+
+
+def choose_eval_functions(functions: List[str], eval_ratio: float) -> set[str]:
+    target_fn_count = max(1, round(len(functions) * eval_ratio))
+    by_difficulty: Dict[str, List[str]] = defaultdict(list)
+    for fn in functions:
+        by_difficulty[DIFFICULTY.get(fn, "medium")].append(fn)
+
+    for fn_list in by_difficulty.values():
+        fn_list.sort(key=stable_hash_int)
+
+    bucket_count = len(by_difficulty)
+    min_quota = 1 if target_fn_count >= bucket_count else 0
+
+    quotas: Dict[str, int] = {}
+    remainders: List[Tuple[float, str]] = []
+    total = 0
+    for diff, fn_list in by_difficulty.items():
+        raw = len(fn_list) * eval_ratio
+        quota = int(raw)
+        if quota < min_quota:
+            quota = min_quota
+        quota = min(quota, len(fn_list))
+        quotas[diff] = quota
+        total += quota
+        remainders.append((raw - quota, diff))
+
+    if total < target_fn_count:
+        for _, diff in sorted(remainders, key=lambda x: (x[0], x[1]), reverse=True):
+            while total < target_fn_count and quotas[diff] < len(by_difficulty[diff]):
+                quotas[diff] += 1
+                total += 1
+    elif total > target_fn_count:
+        for _, diff in sorted(remainders, key=lambda x: (x[0], x[1])):
+            while total > target_fn_count and quotas[diff] > min_quota:
+                quotas[diff] -= 1
+                total -= 1
+
+    selected: List[str] = []
+    for diff in sorted(by_difficulty.keys()):
+        selected.extend(by_difficulty[diff][: quotas[diff]])
+    selected = sorted(set(selected), key=stable_hash_int)
+
+    if len(selected) < target_fn_count:
+        remaining = [fn for fn in sorted(functions, key=stable_hash_int) if fn not in selected]
+        selected.extend(remaining[: target_fn_count - len(selected)])
+    elif len(selected) > target_fn_count:
+        selected = selected[:target_fn_count]
+
+    return set(selected)
+
+
+eval_functions = choose_eval_functions(all_source_functions, EVAL_RATIO)
+eval_ids = {str(s["id"]) for s in samples if str(s["source_function"]) in eval_functions}
 
 
 

@@ -147,6 +147,14 @@ DEFS: Dict[str, str] = {
     count))""",
 }
 
+
+def strip_doc_forms(defn: str) -> str:
+    lines = [line for line in defn.splitlines() if not line.strip().startswith("(doc ")]
+    return "\n".join(lines)
+
+
+DOC_FREE_DEFS: Dict[str, str] = {fn: strip_doc_forms(code) for fn, code in DEFS.items()}
+
 FUNCTION_ORDER = [
     "pattern-var?",
     "subst-try-extend",
@@ -201,10 +209,10 @@ VERIFY_BY_FUNCTION = {
     "subst-try-extend": "(let* ([s0 (empty-subst)] [s1 (subst-try-extend s0 '?x 5)] [s2 (and s1 (subst-try-extend s1 '?x 5))] [s3 (and s1 (subst-try-extend s1 '?x 6))]) (and (pair? s1) (pair? s2) (not s3) (= (subst-lookup s1 '?x) 5)))",
     "subst-merge": "(let* ([a (subst-extend (empty-subst) '?x 1)] [b (subst-extend (empty-subst) '?y 2)] [ok (subst-merge a b)] [c (subst-extend (empty-subst) '?x 1)] [d (subst-extend (empty-subst) '?x 3)] [bad (subst-merge c d)]) (and (pair? ok) (= (subst-lookup ok '?x) 1) (= (subst-lookup ok '?y) 2) (not bad)))",
     "ematch-pattern": "(let* ([eg (make-egraph)] [id (egraph-add-term! eg '(+ a b))] [m1 (ematch-pattern eg '(+ ?x ?y) id (empty-subst))] [m2 (ematch-pattern eg '(+ ?z ?z) id (empty-subst))]) (and (= (length m1) 1) (null? m2) (let* ([s (car m1)] [x (subst-lookup s '?x)] [y (subst-lookup s '?y)]) (and (integer? x) (integer? y) (not (= x y))))))",
-    "ematch": "(let* ([eg (make-egraph)] [id (egraph-add-term! eg '(f x))] [mv (ematch eg '?a id)] [mf (ematch eg '(f ?z) id)] [mg (ematch eg '(g ?z) id)]) (and (= (length mv) 1) (= (length mf) 1) (null? mg)))",
+    "ematch": "(and (let* ([eg (make-egraph)] [id (egraph-add-term! eg '(f x))] [mv (ematch eg '?a id)] [mf (ematch eg '(f ?z) id)] [mg (ematch eg '(g ?z) id)] [sv (and (pair? mv) (car mv))]) (and (= (length mv) 1) (= (length mf) 1) (null? mg) sv (not (subst-lookup sv '?seed)))) (= (let* ([eg (make-egraph)] [fx (egraph-add-term! eg '(f x))] [fy (egraph-add-term! eg '(f y))]) (egraph-merge! eg fx fy) (egraph-saturate-rebuild! eg) (length (ematch eg '(f ?a) fx))) 2))",
     "pattern-apply": "(let* ([s (subst-extend (subst-extend (empty-subst) '?x 1) '?y 2)] [t (pattern-apply s '(+ ?x ?y 42))]) (and (eq? (car t) '+) (eclass-ref? (cadr t)) (= (eclass-ref-id (cadr t)) 1) (eclass-ref? (caddr t)) (= (eclass-ref-id (caddr t)) 2) (= (cadddr t) 42)))",
-    "apply-rule": "(let* ([eg (make-egraph)] [r (make-rule '(+ ?x 0) '?x)] [term (egraph-add-term! eg '(+ a 0))] [a-id (egraph-add-term! eg 'a)] [ok (apply-rule eg r term)]) (egraph-saturate-rebuild! eg) (and ok (= (egraph-find eg term) (egraph-find eg a-id))))",
-    "apply-rules": "(let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x))] [_1 (egraph-add-term! eg '(+ a 0))] [_2 (egraph-add-term! eg '(+ b 0))] [count (apply-rules eg rules)]) (= count 2))",
+    "apply-rule": "(and (let* ([eg (make-egraph)] [r (make-rule '(+ ?x 0) '?x)] [term (egraph-add-term! eg '(+ a 0))] [a-id (egraph-add-term! eg 'a)] [ok (apply-rule eg r term)]) (egraph-saturate-rebuild! eg) (and ok (= (egraph-find eg term) (egraph-find eg a-id)))) (let* ([eg (make-egraph)] [r (make-rule '(* ?x 1) '?x)] [term (egraph-add-term! eg '(+ a 0))]) (not (apply-rule eg r term))))",
+    "apply-rules": "(and (= (let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x))] [_1 (egraph-add-term! eg '(+ a 0))] [_2 (egraph-add-term! eg '(+ b 0))] [count (apply-rules eg rules)]) count) 2) (= (let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x) (make-rule '(* ?x 1) '?x))] [_1 (egraph-add-term! eg '(+ a 0))] [_2 (egraph-add-term! eg '(* b 1))] [count (apply-rules eg rules)]) count) 2))",
 }
 
 PYTHON_SNIPPETS = {
@@ -272,16 +280,19 @@ PYTHON_SNIPPETS = {
 
 CHEZ_SNIPPETS = {
     "pattern-var?": """(define (pattern-var? x)
-  (and (symbol? x)
-       (let ([s (symbol->string x)])
-         (and (> (string-length s) 1)
-              (char=? (string-ref s 0) #\\?)))))""",
+  (if (not (symbol? x))
+      #f
+      (let* ([txt (symbol->string x)]
+             [n (string-length txt)])
+        (and (> n 1)
+             (char=? #\\? (string-ref txt 0))))))""",
     "subst-try-extend": """(define (subst-try-extend subst var class-id)
   (let ([existing (subst-lookup subst var)])
-    (cond
-     [(not existing) (subst-extend subst var class-id)]
-     [(= existing class-id) subst]
-     [else #f])))""",
+    (if existing
+        (if (= existing class-id)
+            subst
+            #f)
+        (subst-extend subst var class-id))))""",
     "subst-merge": """(define (subst-merge subst1 subst2)
   (let loop ([s1 subst1] [result subst2])
     (if (null? s1)
@@ -321,43 +332,48 @@ CHEZ_SNIPPETS = {
                     matching)))]
      [else '()])))""",
     "ematch": """(define (ematch eg pattern class-id)
-  (ematch-pattern eg pattern class-id (empty-subst)))""",
+  (let ([seed (empty-subst)])
+    (ematch-pattern eg pattern class-id seed)))""",
     "pattern-apply": """(define (pattern-apply subst pattern)
   (cond
    [(pattern-var? pattern)
-    (let ([binding (subst-lookup subst pattern)])
-      (if binding
-          (make-eclass-ref binding)
+    (let ([bound (subst-lookup subst pattern)])
+      (if bound
+          (make-eclass-ref bound)
           (error 'pattern-apply "Unbound pattern variable" pattern)))]
    [(pair? pattern)
-    (cons (car pattern)
-          (map (lambda (p) (pattern-apply subst p))
-               (cdr pattern)))]
+    (let ([head (car pattern)]
+          [tail (cdr pattern)])
+      (cons head
+            (map (lambda (part)
+                   (pattern-apply subst part))
+                 tail)))]
    [else pattern]))""",
     "apply-rule": """(define (apply-rule eg rule class-id)
   (let* ([lhs (rule-lhs rule)]
          [rhs (rule-rhs rule)]
-         [matches (ematch eg lhs class-id)])
-    (if (null? matches)
-        #f
-        (begin
-          (for-each
-           (lambda (subst)
-             (let ([rhs-term (pattern-apply subst rhs)])
-               (let ([rhs-id (add-instantiated-term eg rhs-term)])
-                 (egraph-merge! eg class-id rhs-id))))
-           matches)
-          #t))))""",
+         [subs (ematch eg lhs class-id)])
+    (cond
+     [(null? subs) #f]
+     [else
+      (for-each
+       (lambda (s)
+         (let* ([rhs-term (pattern-apply s rhs)]
+                [rhs-id (add-instantiated-term eg rhs-term)])
+           (egraph-merge! eg class-id rhs-id)))
+       subs)
+      #t])))""",
     "apply-rules": """(define (apply-rules eg rules)
-  (let ([uf (egraph-uf eg)] [count 0])
+  (let ([count 0])
     (for-each
      (lambda (root)
        (for-each
         (lambda (rule)
-          (when (apply-rule eg rule root)
-            (set! count (+ count 1))))
+          (if (apply-rule eg rule root)
+              (set! count (+ count 1))
+              #f))
         rules))
-     (uf-roots uf))
+     (uf-roots (egraph-uf eg)))
     count))""",
 }
 
@@ -367,7 +383,7 @@ BUGGY_CASES = [
         "buggy": """(define (pattern-var? x)
   (and (symbol? x)
        (let ([s (symbol->string x)])
-         (> (string-length s) 0)))""",
+         (> (string-length s) 0))))""",
         "note": "A pattern variable must start with ? and have at least one character after it.",
     },
     {
@@ -375,9 +391,9 @@ BUGGY_CASES = [
         "buggy": """(define (pattern-var? x)
   (and (symbol? x)
        (let ([s (symbol->string x)])
-         (and (> (string-length s) 0)
-              (char=? (string-ref s 0) #\\?)))))""",
-        "note": "Bare ? is not a valid pattern variable; require length > 1.",
+         (and (> (string-length s) 1)
+              (char=? (string-ref s (- (string-length s) 1)) #\\?)))))""",
+        "note": "The '?' marker must be the first character, not just present somewhere in the symbol.",
     },
     {
         "fn": "subst-try-extend",
@@ -407,13 +423,15 @@ BUGGY_CASES = [
     {
         "fn": "subst-merge",
         "buggy": """(define (subst-merge subst1 subst2)
-  (if (null? subst1)
-      subst2
-      (let* ([b (car subst1)]
-             [v (car b)]
-             [c (cdr b)])
-        (subst-try-extend subst2 v c))))""",
-        "note": "Must process every binding from subst1, not only the first.",
+  (let loop ([s1 subst1] [result (empty-subst)])
+    (if (null? s1)
+        result
+        (let* ([b (car s1)]
+               [v (car b)]
+               [c (cdr b)]
+               [next (subst-try-extend result v c)])
+          (and next (loop (cdr s1) next))))))""",
+        "note": "Merge must preserve existing bindings from subst2, not rebuild from empty substitution.",
     },
     {
         "fn": "ematch-pattern",
@@ -442,13 +460,19 @@ BUGGY_CASES = [
        (let* ([op (car pattern)]
               [args (cdr pattern)]
               [nodes (egraph-class-nodes eg root)]
-              [node (car nodes)])
-         (if (and (eqv? (enode-op node) op)
-                  (= (enode-arity node) (length args)))
-             (ematch-children eg args (vector->list (enode-children node)) subst)
-             '()))]
+              [matching
+               (filter (lambda (node)
+                         (and (eqv? (enode-op node) op)
+                              (= (enode-arity node) (length args))))
+                       nodes)])
+         (append-map
+          (lambda (node)
+            (if (null? args)
+                (list subst)
+                (ematch-pattern eg (car args) (vector-ref (enode-children node) 0) subst)))
+          matching))]
       [else '()])))""",
-        "note": "For application patterns, accumulate matches across all matching nodes, not just the first node.",
+        "note": "For application patterns, every child pattern must be checked; matching only the first child is incorrect.",
     },
     {
         "fn": "ematch",
@@ -560,16 +584,19 @@ BUGGY_CASES = [
     },
 ]
 
-DIFFICULTY = {
+BASE_DIFFICULTY = {
     "pattern-var?": "easy",
     "subst-try-extend": "medium",
     "subst-merge": "medium",
     "ematch-pattern": "hard",
-    "ematch": "medium",
+    "ematch": "easy",
     "pattern-apply": "medium",
     "apply-rule": "hard",
     "apply-rules": "hard",
 }
+
+DIFFICULTY_LEVELS = ["easy", "medium", "hard"]
+DIFFICULTY_INDEX = {name: idx for idx, name in enumerate(DIFFICULTY_LEVELS)}
 
 REQUIRED_KEYS = [
     "id",
@@ -624,6 +651,67 @@ def def_verify(fn: str) -> str:
     return VERIFY_BY_FUNCTION[fn].strip()
 
 
+def bump_difficulty(level: str, delta: int) -> str:
+    idx = DIFFICULTY_INDEX[level] + delta
+    idx = max(0, min(idx, len(DIFFICULTY_LEVELS) - 1))
+    return DIFFICULTY_LEVELS[idx]
+
+
+def task_difficulty(fn: str, family: str, task_kind: str, override: str | None = None) -> str:
+    if override:
+        return override
+
+    base = BASE_DIFFICULTY[fn]
+    if family == "spec_to_code":
+        if task_kind == "skeleton":
+            return bump_difficulty(base, -1)
+        if task_kind == "contract":
+            return bump_difficulty(base, +1)
+        return base
+
+    if family == "translation":
+        if task_kind == "chez":
+            return bump_difficulty(base, -1)
+        if task_kind == "excerpt":
+            return base
+        return base
+
+    if family == "bugfix":
+        return base
+
+    return base
+
+
+FUNCTION_SECTION = {
+    "pattern-var?": "patterns",
+    "subst-try-extend": "substitutions",
+    "subst-merge": "substitutions",
+    "ematch-pattern": "matching",
+    "ematch": "matching",
+    "pattern-apply": "instantiation",
+    "apply-rule": "rewrites",
+    "apply-rules": "rewrites",
+}
+
+
+def make_source_excerpt(fn: str, snippet: str) -> str:
+    section = FUNCTION_SECTION[fn]
+    indented = "\n".join(f"  {line}" for line in snippet.splitlines())
+    return (
+        ";;; lattice/egraph/match.ss excerpt\n"
+        "(require 'prelude)\n"
+        "(require 'egraph/core)\n"
+        "(require 'egraph/union-find)\n"
+        "\n"
+        "(doc 'module 'egraph/match)\n"
+        f"(doc 'section '{section})\n"
+        "\n"
+        "(define (local-helper x) x)\n"
+        "\n"
+        f"{indented}\n"
+    )
+
+
 # -----------------------------------------------------------------------------
 # Family 1: spec_to_code (24)
 # -----------------------------------------------------------------------------
@@ -631,7 +719,7 @@ for fn in FUNCTION_ORDER:
     add_sample(
         family="spec_to_code",
         category="implementation",
-        difficulty=DIFFICULTY[fn],
+        difficulty=task_difficulty(fn, "spec_to_code", "direct"),
         source_function=fn,
         prompt=f"""Implement this e-graph matching utility in Fold-native Scheme.
 
@@ -649,7 +737,7 @@ Return only code, no explanation.""",
     add_sample(
         family="spec_to_code",
         category="implementation",
-        difficulty=DIFFICULTY[fn],
+        difficulty=task_difficulty(fn, "spec_to_code", "skeleton"),
         source_function=fn,
         prompt=f"""Complete this Fold Scheme skeleton.
 
@@ -666,7 +754,7 @@ Replace `<TODO>` and return only the completed definition for `{fn}`.""",
     add_sample(
         family="spec_to_code",
         category="implementation",
-        difficulty=DIFFICULTY[fn],
+        difficulty=task_difficulty(fn, "spec_to_code", "contract"),
         source_function=fn,
         prompt=f"""Implement `{fn}` from this contract.
 
@@ -690,7 +778,7 @@ for fn in FUNCTION_ORDER:
     add_sample(
         family="translation",
         category="translation",
-        difficulty=DIFFICULTY[fn],
+        difficulty=task_difficulty(fn, "translation", "python"),
         source_function=fn,
         prompt=f"""Translate this Python function into Fold-native Scheme.
 Preserve behavior and keep the function name `{fn}`.
@@ -707,7 +795,7 @@ Return only the Scheme definition.
     add_sample(
         family="translation",
         category="translation",
-        difficulty=DIFFICULTY[fn],
+        difficulty=task_difficulty(fn, "translation", "chez"),
         source_function=fn,
         prompt=f"""Convert this Chez-style snippet to canonical Fold style.
 The target function must be named `{fn}`.
@@ -724,24 +812,18 @@ Return only the final Fold definition.
     add_sample(
         family="translation",
         category="translation",
-        difficulty=DIFFICULTY[fn],
+        difficulty=task_difficulty(fn, "translation", "excerpt"),
         source_function=fn,
-        prompt=f"""Translate the reference implementation to idiomatic Fold Scheme.
+        prompt=f"""Extract and translate the target function from this source-style module excerpt.
+Return only a single Fold definition for `{fn}`.
+Drop metadata doc forms from the output and keep executable behavior unchanged.
 
-Target module: `{SOURCE_MODULE}`
-Target function: `{fn}`
-
-Constraints:
-- Preserve observable behavior exactly.
-- Keep the same function name/signature.
-- Return only code.
-
-```python
-{PYTHON_SNIPPETS[fn]}
+```scheme
+{make_source_excerpt(fn, CHEZ_SNIPPETS[fn])}
 ```""",
-        ground_truth=DEFS[fn],
+        ground_truth=DOC_FREE_DEFS[fn],
         verify_expr=def_verify(fn),
-        tags=["tier1", "egraph", "matching", "rewrite", "reference-translation", fn],
+        tags=["tier1", "egraph", "matching", "rewrite", "source-excerpt-to-fold", "doc-free-target", fn],
     )
 
 
@@ -753,7 +835,7 @@ for case in BUGGY_CASES:
     add_sample(
         family="bugfix",
         category="debugging",
-        difficulty=DIFFICULTY[fn],
+        difficulty=task_difficulty(fn, "bugfix", "bugfix", str(case.get("difficulty", "")) or None),
         source_function=fn,
         prompt=f"""Fix the bug in this Fold Scheme function with minimal semantic changes.
 Target: `{fn}` in `{SOURCE_MODULE}`.
@@ -784,8 +866,7 @@ def add_composition(
     composition_prompt = (
         f"{prompt.rstrip()}\n\n"
         f"Ensure `{source_function}` is part of the composed solution.\n"
-        "Behavior check to satisfy:\n"
-        f"```scheme\n{verify_check.strip()}\n```"
+        "Return only the final Fold expression."
     )
     add_sample(
         family="composition",
@@ -853,11 +934,11 @@ composition_cases = [
     },
     {
         "fn": "subst-try-extend",
-        "prompt": "Bind `?x -> 5`, then bind `?x -> 5` again, and return whether both states remain valid.",
-        "gt": "(let* ([s1 (subst-try-extend (empty-subst) '?x 5)] [s2 (and s1 (subst-try-extend s1 '?x 5))]) (and (pair? s1) (pair? s2) (= (subst-lookup s2 '?x) 5)))",
-        "verify": "(equal? (let* ([s1 (subst-try-extend (empty-subst) '?x 5)] [s2 (and s1 (subst-try-extend s1 '?x 5))]) (and (pair? s1) (pair? s2) (= (subst-lookup s2 '?x) 5))) #t)",
-        "difficulty": "medium",
-        "tags": ["idempotent"],
+        "prompt": "Build a substitution with `subst-try-extend`, merge in `?z -> 9`, and verify all bindings survive.",
+        "gt": "(let* ([s1 (subst-try-extend (empty-subst) '?x 5)] [s2 (and s1 (subst-try-extend s1 '?y 8))] [m (and s2 (subst-merge s2 (subst-extend (empty-subst) '?z 9)))]) (and m (= (subst-lookup m '?x) 5) (= (subst-lookup m '?y) 8) (= (subst-lookup m '?z) 9)))",
+        "verify": "(equal? (let* ([s1 (subst-try-extend (empty-subst) '?x 5)] [s2 (and s1 (subst-try-extend s1 '?y 8))] [m (and s2 (subst-merge s2 (subst-extend (empty-subst) '?z 9)))]) (and m (= (subst-lookup m '?x) 5) (= (subst-lookup m '?y) 8) (= (subst-lookup m '?z) 9))) #t)",
+        "difficulty": "hard",
+        "tags": ["multi-fn", "merge"],
     },
     {
         "fn": "subst-try-extend",
@@ -895,21 +976,21 @@ composition_cases = [
     },
     {
         "fn": "subst-merge",
-        "prompt": "Merge three substitutions transitively and return whether final lookup for `?y` is 8.",
-        "gt": "(let* ([a (subst-extend (empty-subst) '?x 7)] [b (subst-extend (empty-subst) '?y 8)] [c (subst-merge a b)] [d (and c (subst-merge c (subst-extend (empty-subst) '?z 9)))]) (and d (= (subst-lookup d '?y) 8)))",
-        "verify": "(equal? (let* ([a (subst-extend (empty-subst) '?x 7)] [b (subst-extend (empty-subst) '?y 8)] [c (subst-merge a b)] [d (and c (subst-merge c (subst-extend (empty-subst) '?z 9)))]) (and d (= (subst-lookup d '?y) 8))) #t)",
-        "difficulty": "medium",
-        "tags": ["transitive"],
+        "prompt": "Create one substitution via `subst-try-extend`, merge with another, and verify all three variables are preserved.",
+        "gt": "(let* ([a0 (subst-try-extend (empty-subst) '?x 7)] [a (and a0 (subst-try-extend a0 '?y 8))] [b (subst-try-extend (empty-subst) '?z 9)] [m (and a b (subst-merge a b))]) (and m (= (subst-lookup m '?x) 7) (= (subst-lookup m '?y) 8) (= (subst-lookup m '?z) 9)))",
+        "verify": "(equal? (let* ([a0 (subst-try-extend (empty-subst) '?x 7)] [a (and a0 (subst-try-extend a0 '?y 8))] [b (subst-try-extend (empty-subst) '?z 9)] [m (and a b (subst-merge a b))]) (and m (= (subst-lookup m '?x) 7) (= (subst-lookup m '?y) 8) (= (subst-lookup m '?z) 9))) #t)",
+        "difficulty": "hard",
+        "tags": ["multi-fn", "transitive"],
     },
 
     # ematch-pattern
     {
         "fn": "ematch-pattern",
-        "prompt": "Match `(+ ?x ?y)` against `(+ a b)` and return whether one substitution is produced.",
-        "gt": "(let* ([eg (make-egraph)] [id (egraph-add-term! eg '(+ a b))] [ms (ematch-pattern eg '(+ ?x ?y) id (empty-subst))]) (= (length ms) 1))",
-        "verify": "(equal? (let* ([eg (make-egraph)] [id (egraph-add-term! eg '(+ a b))] [ms (ematch-pattern eg '(+ ?x ?y) id (empty-subst))]) (= (length ms) 1)) #t)",
+        "prompt": "Match `(+ ?x ?y)` against `(+ a b)`, then instantiate `(+ ?y ?x)` from the first substitution.",
+        "gt": "(let* ([eg (make-egraph)] [id (egraph-add-term! eg '(+ a b))] [ms (ematch-pattern eg '(+ ?x ?y) id (empty-subst))] [s (and (pair? ms) (car ms))] [rhs (and s (pattern-apply s '(+ ?y ?x)))]) (and s (pair? rhs) (eq? (car rhs) '+) (eclass-ref? (cadr rhs)) (eclass-ref? (caddr rhs))))",
+        "verify": "(equal? (let* ([eg (make-egraph)] [id (egraph-add-term! eg '(+ a b))] [ms (ematch-pattern eg '(+ ?x ?y) id (empty-subst))] [s (and (pair? ms) (car ms))] [rhs (and s (pattern-apply s '(+ ?y ?x)))]) (and s (pair? rhs) (eq? (car rhs) '+) (eclass-ref? (cadr rhs)) (eclass-ref? (caddr rhs)))) #t)",
         "difficulty": "hard",
-        "tags": ["compound"],
+        "tags": ["compound", "multi-fn"],
     },
     {
         "fn": "ematch-pattern",
@@ -947,11 +1028,11 @@ composition_cases = [
     },
     {
         "fn": "ematch",
-        "prompt": "Run `ematch` for `(f ?x)` on class of `(f a)` and return whether one match exists.",
-        "gt": "(let* ([eg (make-egraph)] [id (egraph-add-term! eg '(f a))]) (= (length (ematch eg '(f ?x) id)) 1))",
-        "verify": "(equal? (let* ([eg (make-egraph)] [id (egraph-add-term! eg '(f a))]) (= (length (ematch eg '(f ?x) id)) 1)) #t)",
+        "prompt": "Compare `ematch` vs `ematch-pattern` on `(f ?x)` for class `(f a)` and return whether they agree on match count.",
+        "gt": "(let* ([eg (make-egraph)] [id (egraph-add-term! eg '(f a))] [m1 (ematch eg '(f ?x) id)] [m2 (ematch-pattern eg '(f ?x) id (empty-subst))]) (= (length m1) (length m2)))",
+        "verify": "(equal? (let* ([eg (make-egraph)] [id (egraph-add-term! eg '(f a))] [m1 (ematch eg '(f ?x) id)] [m2 (ematch-pattern eg '(f ?x) id (empty-subst))]) (= (length m1) (length m2))) #t)",
         "difficulty": "medium",
-        "tags": ["application"],
+        "tags": ["wrapper-consistency", "multi-fn"],
     },
     {
         "fn": "ematch",
@@ -1041,35 +1122,35 @@ composition_cases = [
     # apply-rules
     {
         "fn": "apply-rules",
-        "prompt": "Run apply-rules with rule `(+ ?x 0) => ?x` over `(+ a 0)` and `(+ b 0)`; return match count.",
-        "gt": "(let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x))]) (egraph-add-term! eg '(+ a 0)) (egraph-add-term! eg '(+ b 0)) (apply-rules eg rules))",
-        "verify": "(= (let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x))]) (egraph-add-term! eg '(+ a 0)) (egraph-add-term! eg '(+ b 0)) (apply-rules eg rules)) 2)",
+        "prompt": "Run two simplification rules once, then confirm both rewritten terms are equivalent to their simplified symbols.",
+        "gt": "(let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x) (make-rule '(* ?x 1) '?x))] [ta (egraph-add-term! eg '(+ a 0))] [tb (egraph-add-term! eg '(* b 1))] [a-id (egraph-add-term! eg 'a)] [b-id (egraph-add-term! eg 'b)] [count (apply-rules eg rules)]) (egraph-saturate-rebuild! eg) (and (= count 2) (= (egraph-find eg ta) (egraph-find eg a-id)) (= (egraph-find eg tb) (egraph-find eg b-id))))",
+        "verify": "(equal? (let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x) (make-rule '(* ?x 1) '?x))] [ta (egraph-add-term! eg '(+ a 0))] [tb (egraph-add-term! eg '(* b 1))] [a-id (egraph-add-term! eg 'a)] [b-id (egraph-add-term! eg 'b)] [count (apply-rules eg rules)]) (egraph-saturate-rebuild! eg) (and (= count 2) (= (egraph-find eg ta) (egraph-find eg a-id)) (= (egraph-find eg tb) (egraph-find eg b-id)))) #t)",
         "difficulty": "hard",
-        "tags": ["count"],
+        "tags": ["rewrite-effect", "multi-fn"],
     },
     {
         "fn": "apply-rules",
-        "prompt": "Run apply-rules with only `(* ?x 1) => ?x` against `(+ a 0)`; return whether count is zero.",
-        "gt": "(let* ([eg (make-egraph)] [rules (list (make-rule '(* ?x 1) '?x))]) (egraph-add-term! eg '(+ a 0)) (= (apply-rules eg rules) 0))",
-        "verify": "(equal? (let* ([eg (make-egraph)] [rules (list (make-rule '(* ?x 1) '?x))]) (egraph-add-term! eg '(+ a 0)) (= (apply-rules eg rules) 0)) #t)",
+        "prompt": "Apply a commutativity+identity rule set and check that `ematch` can still find an addition shape in the rewritten class.",
+        "gt": "(let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x ?y) '(+ ?y ?x)) (make-rule '(+ ?x 0) '?x))] [t (egraph-add-term! eg '(+ a 0))]) (apply-rules eg rules) (egraph-saturate-rebuild! eg) (>= (length (ematch eg '(+ ?u ?v) t)) 1))",
+        "verify": "(equal? (let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x ?y) '(+ ?y ?x)) (make-rule '(+ ?x 0) '?x))] [t (egraph-add-term! eg '(+ a 0))]) (apply-rules eg rules) (egraph-saturate-rebuild! eg) (>= (length (ematch eg '(+ ?u ?v) t)) 1)) #t)",
         "difficulty": "medium",
-        "tags": ["zero"],
+        "tags": ["post-match", "multi-fn"],
     },
     {
         "fn": "apply-rules",
-        "prompt": "Apply two rules (`(+ ?x 0)=>?x` and `(* ?x 1)=>?x`) on matching terms and return total match count.",
-        "gt": "(let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x) (make-rule '(* ?x 1) '?x))]) (egraph-add-term! eg '(+ a 0)) (egraph-add-term! eg '(* b 1)) (apply-rules eg rules))",
-        "verify": "(= (let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x) (make-rule '(* ?x 1) '?x))]) (egraph-add-term! eg '(+ a 0)) (egraph-add-term! eg '(* b 1)) (apply-rules eg rules)) 2)",
-        "difficulty": "hard",
-        "tags": ["multi-rule"],
+        "prompt": "Run a simplification rule set over non-matching terms and return whether the sweep records zero matches.",
+        "gt": "(let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x) (make-rule '(* ?x 1) '?x))]) (egraph-add-term! eg '(+ a 1)) (egraph-add-term! eg '(* b 2)) (= (apply-rules eg rules) 0))",
+        "verify": "(equal? (let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x) (make-rule '(* ?x 1) '?x))]) (egraph-add-term! eg '(+ a 1)) (egraph-add-term! eg '(* b 2)) (= (apply-rules eg rules) 0)) #t)",
+        "difficulty": "medium",
+        "tags": ["no-op-sweep"],
     },
     {
         "fn": "apply-rules",
-        "prompt": "Use apply-rules with `(+ ?x 0)=>?x` on `(+ a 0)` then rebuild; return whether term is equivalent to `a`.",
-        "gt": "(let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x))] [term (egraph-add-term! eg '(+ a 0))] [a-id (egraph-add-term! eg 'a)]) (apply-rules eg rules) (egraph-saturate-rebuild! eg) (= (egraph-find eg term) (egraph-find eg a-id)))",
-        "verify": "(equal? (let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x))] [term (egraph-add-term! eg '(+ a 0))] [a-id (egraph-add-term! eg 'a)]) (apply-rules eg rules) (egraph-saturate-rebuild! eg) (= (egraph-find eg term) (egraph-find eg a-id))) #t)",
+        "prompt": "Use `apply-rules` first, then a direct `apply-rule` call, and verify both rewrites contribute to expected equivalences.",
+        "gt": "(let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x))] [sum (egraph-add-term! eg '(+ a 0))] [prod (egraph-add-term! eg '(* b 1))] [a-id (egraph-add-term! eg 'a)] [b-id (egraph-add-term! eg 'b)] [extra (make-rule '(* ?x 1) '?x)] [count (apply-rules eg rules)] [ok2 (apply-rule eg extra prod)]) (egraph-saturate-rebuild! eg) (and (= count 1) ok2 (= (egraph-find eg sum) (egraph-find eg a-id)) (= (egraph-find eg prod) (egraph-find eg b-id))))",
+        "verify": "(equal? (let* ([eg (make-egraph)] [rules (list (make-rule '(+ ?x 0) '?x))] [sum (egraph-add-term! eg '(+ a 0))] [prod (egraph-add-term! eg '(* b 1))] [a-id (egraph-add-term! eg 'a)] [b-id (egraph-add-term! eg 'b)] [extra (make-rule '(* ?x 1) '?x)] [count (apply-rules eg rules)] [ok2 (apply-rule eg extra prod)]) (egraph-saturate-rebuild! eg) (and (= count 1) ok2 (= (egraph-find eg sum) (egraph-find eg a-id)) (= (egraph-find eg prod) (egraph-find eg b-id)))) #t)",
         "difficulty": "hard",
-        "tags": ["rewrite-effect"],
+        "tags": ["staged-rewrite", "multi-fn"],
     },
 ]
 
@@ -1081,47 +1162,6 @@ for case in composition_cases:
         verify_check=str(case["verify"]),
         difficulty=str(case["difficulty"]),
         extra_tags=list(case["tags"]),
-    )
-
-# Strengthen non-composition rows with independent checks from same function.
-composition_verify_by_fn: Dict[str, List[str]] = defaultdict(list)
-for case in composition_cases:
-    fn = str(case["fn"])
-    check = str(case["verify"]).strip()
-    if check not in composition_verify_by_fn[fn]:
-        composition_verify_by_fn[fn].append(check)
-
-for sample in samples:
-    if str(sample["family"]) == "composition":
-        continue
-
-    fn = str(sample["source_function"])
-    checks = composition_verify_by_fn.get(fn, [])
-    if not checks:
-        continue
-
-    sid = str(sample["id"])
-    base = sum(ord(ch) for ch in sid)
-    pick1 = base % len(checks)
-    selected_checks = [checks[pick1]]
-    if len(checks) > 1:
-        pick2 = (base * 11 + len(sid)) % len(checks)
-        if pick2 == pick1:
-            pick2 = (pick1 + 1) % len(checks)
-        selected_checks.append(checks[pick2])
-
-    base_verify = str(sample["verify_expr"]).strip()
-    if base_verify.startswith("(and ") and base_verify.endswith(")"):
-        base_verify = base_verify[5:-1].strip()
-    sample["verify_expr"] = f"(and {base_verify} {' '.join(selected_checks)})"
-    checks_block = "\n\n".join(
-        f"Check {idx + 1}:\n```scheme\n{check}\n```"
-        for idx, check in enumerate(selected_checks)
-    )
-    sample["prompt_body"] = (
-        f"{str(sample['prompt_body']).rstrip()}\n\n"
-        "Independent behavior checks to satisfy:\n"
-        f"{checks_block}"
     )
 
 if sum(1 for s in samples if s["family"] == "composition") != 32:

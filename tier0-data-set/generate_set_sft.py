@@ -283,7 +283,7 @@ BUGGY_CASES = [
     },
     {
         "fn": "set-subset?",
-        "buggy": "(define (set-subset? set1 set2)\n  (set-subset? set2 set1))",
+        "buggy": "(define (set-subset? set1 set2)\n  (let loop ([remaining set2])\n    (cond\n      [(null? remaining) #t]\n      [(set-member? (car remaining) set1)\n       (loop (cdr remaining))]\n      [else #f])))",
         "note": "Subset direction is reversed.",
     },
     {

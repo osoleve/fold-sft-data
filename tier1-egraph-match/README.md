@@ -23,6 +23,7 @@ SFT dataset for `lattice/egraph/match.ss`, focused on pattern matching and rewri
 - `bugfix`: 16
 - `composition`: 32
 - Total: 96
+- Split: 79 train / 17 eval
 
 ## Files
 
@@ -44,5 +45,16 @@ python3 data/tier1-egraph-match/validate_egraph_match_sft.py
 ## Notes
 
 - Prompt variation is deterministic via `user/sft/generate.ss` (grammar DSL).
-- The generator emits pre-diversification `prompt_body`, then `generate.ss` produces final `prompt`.
+- Generation is deterministic and two-stage:
+  1. Python generator writes canonical `prompt_body` + labels to `.pre_diversify.jsonl`.
+  2. `user/sft/generate.ss` rewrites prompts into stylistic variants and emits final `prompt`.
 - Split assignment is leakage-aware via `data/sft_split_utils.py`.
+- Translation includes `source-excerpt-to-fold` tasks with doc-free targets and `chez-to-fold` tasks.
+- Composition prompts intentionally omit raw verifier snippets to reduce answer leakage from prompt text.
+- Validator checks:
+  - schema/shape invariants and tautology guards
+  - near-duplicate prompt detection
+  - composition `ground_truth`/`verify_expr` coherence for wrapper-style checks
+  - non-trivial Chez→Fold translation similarity thresholding
+  - executable verification of all `verify_expr` checks
+  - bugfix negative checks (buggy snippets must fail their `verify_expr`)

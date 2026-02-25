@@ -16,6 +16,7 @@ if str(DATA_ROOT) not in sys.path:
     sys.path.insert(0, str(DATA_ROOT))
 
 from sft_prompt_diversity import diversify_prompt
+from sft_split_utils import compute_leakage_aware_eval_ids
 
 ALL_PATH = OUT_DIR / "all.jsonl"
 TRAIN_PATH = OUT_DIR / "train.jsonl"
@@ -1012,12 +1013,16 @@ def add_composition(
     difficulty: str,
     extra_tags: List[str],
 ) -> None:
+    composition_prompt = (
+        f"{prompt.rstrip()}\n\n"
+        f"Ensure `{source_function}` is part of the composed solution."
+    )
     add_sample(
         family="composition",
         category="usage",
         difficulty=difficulty,
         source_function=source_function,
-        prompt=prompt,
+        prompt=composition_prompt,
         ground_truth=ground_truth,
         verify_expr=build_verify(verify_check, [source_function]),
         tags=["tier1", "query", "patterns-parse", "composition", source_function] + extra_tags,
@@ -1320,15 +1325,27 @@ for sample in samples:
         continue
 
     sid = str(sample["id"])
-    pick = sum(ord(ch) for ch in sid) % len(checks)
-    extra_check = checks[pick]
-    extra_verify = build_verify(extra_check, [fn])
+    base = sum(ord(ch) for ch in sid)
+    pick1 = base % len(checks)
+    selected_checks = [checks[pick1]]
+    if len(checks) > 1:
+        pick2 = (base * 7 + len(sid)) % len(checks)
+        if pick2 == pick1:
+            pick2 = (pick1 + 1) % len(checks)
+        selected_checks.append(checks[pick2])
 
-    sample["verify_expr"] = f"(and {str(sample['verify_expr']).strip()} {extra_verify})"
+    wrapped_checks = [build_verify(check, [fn]) for check in selected_checks]
+    sample["verify_expr"] = (
+        f"(and {str(sample['verify_expr']).strip()} {' '.join(wrapped_checks)})"
+    )
+    checks_block = "\n\n".join(
+        f"Check {idx + 1}:\n```scheme\n{check}\n```"
+        for idx, check in enumerate(selected_checks)
+    )
     sample["prompt"] = (
         f"{str(sample['prompt']).rstrip()}\n\n"
-        "Independent behavior check to satisfy:\n"
-        f"```scheme\n{extra_check}\n```"
+        "Independent behavior checks to satisfy:\n"
+        f"{checks_block}"
     )
 
 if sum(1 for s in samples if s["family"] == "composition") != 32:
@@ -1345,78 +1362,24 @@ EVAL_RATIO = 0.18
 EVAL_MIN_BY_FAMILY = {
     "spec_to_code": 3,
     "translation": 3,
-    "bugfix": 3,
+    "bugfix": 2,
     "composition": 5,
 }
 
-
-def eval_quota_for_family(family: str, family_size: int) -> int:
-    if family_size <= 0:
-        return 0
-    target = round(family_size * EVAL_RATIO)
-    floor = EVAL_MIN_BY_FAMILY.get(family, 1)
-    return min(family_size, max(floor, target))
-
-
-def spread_indices(n: int, k: int) -> Set[int]:
-    if k <= 0:
-        return set()
-    if k >= n:
-        return set(range(n))
-    if k == 1:
-        return {n // 2}
-    idxs = {round(i * (n - 1) / (k - 1)) for i in range(k)}
-    cursor = 0
-    while len(idxs) < k:
-        if cursor not in idxs:
-            idxs.add(cursor)
-        cursor += 1
-    return idxs
-
-
-eval_ids: Set[str] = set()
-for fam, fam_samples in by_family.items():
-    picked = spread_indices(len(fam_samples), eval_quota_for_family(fam, len(fam_samples)))
-    for i, s in enumerate(fam_samples):
-        if i in picked:
-            eval_ids.add(str(s["id"]))
+eval_ids = compute_leakage_aware_eval_ids(
+    samples,
+    eval_ratio=EVAL_RATIO,
+    eval_min_by_family=EVAL_MIN_BY_FAMILY,
+    enforce_source_function_coverage=True,
+)
 
 id_to_sample: Dict[str, Dict[str, object]] = {str(s["id"]): s for s in samples}
 all_source_functions = sorted({str(s["source_function"]) for s in samples})
-
-
-def eval_source_fn_counts(ids: Set[str]) -> Counter:
-    return Counter(str(id_to_sample[sid]["source_function"]) for sid in ids)
-
-
-changed = True
-while changed:
-    changed = False
-    fn_counts = eval_source_fn_counts(eval_ids)
-    missing_fns = [fn for fn in all_source_functions if fn_counts[fn] == 0]
-    if not missing_fns:
-        break
-
-    for fn in missing_fns:
-        candidates = [s for s in samples if str(s["source_function"]) == fn and str(s["id"]) not in eval_ids]
-        swapped = False
-        for cand in candidates:
-            fam = str(cand["family"])
-            fam_eval = [id_to_sample[sid] for sid in eval_ids if str(id_to_sample[sid]["family"]) == fam]
-            removable = [r for r in fam_eval if fn_counts[str(r["source_function"])] > 1]
-            if not removable:
-                continue
-            removable.sort(key=lambda r: (fn_counts[str(r["source_function"])], str(r["id"])), reverse=True)
-            out = removable[0]
-            eval_ids.remove(str(out["id"]))
-            eval_ids.add(str(cand["id"]))
-            changed = True
-            swapped = True
-            break
-        if swapped:
-            break
-
-missing_after = [fn for fn in all_source_functions if eval_source_fn_counts(eval_ids)[fn] == 0]
+missing_after = [
+    fn
+    for fn in all_source_functions
+    if not any(str(id_to_sample[sid]["source_function"]) == fn for sid in eval_ids)
+]
 if missing_after:
     raise ValueError(f"eval split is missing source functions: {missing_after}")
 

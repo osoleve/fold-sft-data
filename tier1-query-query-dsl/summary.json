@@ -1,0 +1,42 @@
+{
+  "total": 96,
+  "train": 79,
+  "eval": 17,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 2,
+      "train": 14
+    },
+    "composition": {
+      "total": 32,
+      "eval": 9,
+      "train": 23
+    },
+    "spec_to_code": {
+      "total": 24,
+      "eval": 3,
+      "train": 21
+    },
+    "translation": {
+      "total": 24,
+      "eval": 3,
+      "train": 21
+    }
+  },
+  "difficulty": {
+    "easy": 44,
+    "hard": 14,
+    "medium": 38
+  },
+  "source_functions": {
+    "and-all": 12,
+    "build-has-refs-predicate": 12,
+    "build-payload-size-predicate": 12,
+    "build-refs-count-predicate": 12,
+    "build-refs-to-predicate": 12,
+    "build-tag-predicate": 12,
+    "interpret-match": 12,
+    "or-any": 12
+  }
+}

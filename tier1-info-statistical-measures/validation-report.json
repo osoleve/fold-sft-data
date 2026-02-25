@@ -1,0 +1,31 @@
+{
+  "status": "ok",
+  "summary": {
+    "total": 80,
+    "families": {
+      "bugfix": 16,
+      "composition": 32,
+      "spec_to_code": 16,
+      "translation": 16
+    },
+    "difficulty": {
+      "easy": 18,
+      "hard": 24,
+      "medium": 38
+    },
+    "splits": {
+      "eval": 14,
+      "train": 66
+    },
+    "source_functions": {
+      "alpha-divergence": 10,
+      "bhattacharyya-coefficient": 10,
+      "bhattacharyya-distance": 10,
+      "chi-squared-divergence": 10,
+      "hellinger-distance": 10,
+      "jeffreys-divergence": 10,
+      "symmetric-chi-squared": 10,
+      "total-variation-distance": 10
+    }
+  }
+}

@@ -10,6 +10,7 @@ Outputs:
 from __future__ import annotations
 
 import json
+import hashlib
 import sys
 import re
 from collections import Counter, defaultdict
@@ -729,87 +730,26 @@ if sum(1 for s in samples if s["family"] == "composition") != 60:
 
 
 # -----------------------------------------------------------------------------
-# Split train/eval with family-balanced quotas
+# Split train/eval by source_function (leakage-proof)
 # -----------------------------------------------------------------------------
 if len(samples) != 140:
     raise ValueError(f"expected 140 samples, got {len(samples)}")
 
 
+def stable_hash_int(text: str) -> int:
+    digest = hashlib.sha256(text.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big")
+
+
+all_source_functions = sorted({str(s["source_function"]) for s in samples})
+ranked_functions = sorted(all_source_functions, key=stable_hash_int)
+target_eval_functions = max(3, round(len(all_source_functions) * 0.18))
+eval_function_set = set(ranked_functions[:target_eval_functions])
+eval_ids: Set[str] = {str(s["id"]) for s in samples if str(s["source_function"]) in eval_function_set}
+
 by_family: Dict[str, List[Dict[str, object]]] = defaultdict(list)
 for s in samples:
     by_family[str(s["family"])].append(s)
-
-EVAL_QUOTA = {
-    "spec_to_code": 5,
-    "translation": 4,
-    "bugfix": 4,
-    "composition": 7,
-}
-
-
-def spread_indices(n: int, k: int) -> Set[int]:
-    if k <= 0:
-        return set()
-    if k >= n:
-        return set(range(n))
-    if k == 1:
-        return {n // 2}
-    idxs = {round(i * (n - 1) / (k - 1)) for i in range(k)}
-    cursor = 0
-    while len(idxs) < k:
-        if cursor not in idxs:
-            idxs.add(cursor)
-        cursor += 1
-    return idxs
-
-
-eval_ids: Set[str] = set()
-for fam, fam_samples in by_family.items():
-    k = EVAL_QUOTA[fam]
-    picked = spread_indices(len(fam_samples), k)
-    for i, s in enumerate(fam_samples):
-        if i in picked:
-            eval_ids.add(str(s["id"]))
-
-id_to_sample: Dict[str, Dict[str, object]] = {str(s["id"]): s for s in samples}
-all_source_functions = sorted({str(s["source_function"]) for s in samples})
-
-
-def eval_source_fn_counts(ids: Set[str]) -> Counter:
-    return Counter(str(id_to_sample[sid]["source_function"]) for sid in ids)
-
-
-changed = True
-while changed:
-    changed = False
-    fn_counts = eval_source_fn_counts(eval_ids)
-    missing_fns = [fn for fn in all_source_functions if fn_counts[fn] == 0]
-    if not missing_fns:
-        break
-
-    for fn in missing_fns:
-        candidates = [s for s in samples if str(s["source_function"]) == fn and str(s["id"]) not in eval_ids]
-        swapped = False
-        for cand in candidates:
-            fam = str(cand["family"])
-            fam_eval = [id_to_sample[sid] for sid in eval_ids if str(id_to_sample[sid]["family"]) == fam]
-            removable = [r for r in fam_eval if fn_counts[str(r["source_function"])] > 1]
-            if not removable:
-                continue
-
-            removable.sort(key=lambda r: (fn_counts[str(r["source_function"])], str(r["id"])), reverse=True)
-            out = removable[0]
-            eval_ids.remove(str(out["id"]))
-            eval_ids.add(str(cand["id"]))
-            changed = True
-            swapped = True
-            break
-        if not swapped:
-            continue
-
-missing_after = [fn for fn in all_source_functions if eval_source_fn_counts(eval_ids)[fn] == 0]
-if missing_after:
-    raise ValueError(f"eval split is missing source functions: {missing_after}")
 
 train, eval_ = [], []
 for s in samples:
@@ -822,8 +762,8 @@ for s in samples:
         s2["split"] = "train"
         train.append(s2)
 
-if len(train) != 120 or len(eval_) != 20:
-    raise ValueError(f"split mismatch: train={len(train)}, eval={len(eval_)}")
+if len(train) + len(eval_) != len(samples):
+    raise ValueError(f"split mismatch: train={len(train)}, eval={len(eval_)}, total={len(samples)}")
 
 
 # -----------------------------------------------------------------------------

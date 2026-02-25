@@ -708,7 +708,7 @@ Write exactly one Scheme function definition for `{fn}`.
 Return only code, no explanation.""",
         ground_truth=DEFS[fn],
         verify_expr=def_verify(fn),
-        tags=["data", "hamt", "spec-to-code", fn],
+        tags=["tier0", "data", "hamt", "spec-to-code", fn],
     )
 
     add_sample(
@@ -729,7 +729,7 @@ Behavior contract: {FUNCTION_SPECS[fn]}
 Output only the completed function definition.""",
         ground_truth=DEFS[fn],
         verify_expr=def_verify(fn),
-        tags=["data", "hamt", "spec-to-code", "skeleton", fn],
+        tags=["tier0", "data", "hamt", "skeleton-completion", fn],
     )
 
 
@@ -739,7 +739,7 @@ Output only the completed function definition.""",
 for fn in TRANSLATION_FUNCTIONS:
     add_sample(
         family="translation",
-        category="transpile",
+        category="translation",
         difficulty=DIFFICULTY[fn],
         source_function=fn,
         prompt=f"""Translate the following Python function into Fold-native Scheme.
@@ -754,12 +754,12 @@ Target function name: `{fn}`
 Return only the Scheme definition.""",
         ground_truth=DEFS[fn],
         verify_expr=def_verify(fn),
-        tags=["data", "hamt", "translation", "python", fn],
+        tags=["tier0", "data", "hamt", "python-to-scheme", fn],
     )
 
     add_sample(
         family="translation",
-        category="transpile",
+        category="translation",
         difficulty=DIFFICULTY[fn],
         source_function=fn,
         prompt=f"""Convert this Chez-style snippet to canonical Fold style.
@@ -774,7 +774,7 @@ Target function: `{fn}`
 Return only Fold code.""",
         ground_truth=DEFS[fn],
         verify_expr=def_verify(fn),
-        tags=["data", "hamt", "translation", "chez", fn],
+        tags=["tier0", "data", "hamt", "chez-to-fold", fn],
     )
 
 
@@ -785,7 +785,7 @@ for case in BUGGY_CASES:
     fn = case["fn"]
     add_sample(
         family="bugfix",
-        category="repair",
+        category="debugging",
         difficulty=DIFFICULTY[fn],
         source_function=fn,
         prompt=f"""Fix the bug in this Fold Scheme function with minimal semantic changes.
@@ -799,7 +799,7 @@ Known issue: {case['note']}
 Return only the corrected definition.""",
         ground_truth=DEFS[fn],
         verify_expr=def_verify(fn),
-        tags=["data", "hamt", "bugfix", fn],
+        tags=["tier0", "data", "hamt", "bugfix", fn],
     )
 
 
@@ -824,7 +824,7 @@ def add_composition(
         prompt=prompt,
         ground_truth=ground_truth,
         verify_expr=verify_expr,
-        tags=["data", "hamt", "composition", source_function] + extra_tags,
+        tags=["tier0", "data", "hamt", "composition", source_function] + extra_tags,
     )
 
 

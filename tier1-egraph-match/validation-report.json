@@ -9,9 +9,9 @@
       "translation": 24
     },
     "difficulty": {
-      "easy": 14,
-      "hard": 34,
-      "medium": 48
+      "easy": 26,
+      "hard": 32,
+      "medium": 38
     },
     "splits": {
       "eval": 17,

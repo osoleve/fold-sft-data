@@ -1,0 +1,31 @@
+{
+  "status": "ok",
+  "summary": {
+    "total": 80,
+    "families": {
+      "bugfix": 16,
+      "composition": 32,
+      "spec_to_code": 16,
+      "translation": 16
+    },
+    "difficulty": {
+      "easy": 12,
+      "hard": 17,
+      "medium": 51
+    },
+    "splits": {
+      "eval": 14,
+      "train": 66
+    },
+    "source_functions": {
+      "dimap": 10,
+      "lmap": 10,
+      "make-profunctor": 10,
+      "profunctor-dimap": 10,
+      "profunctor-lmap": 10,
+      "profunctor-rmap": 10,
+      "profunctor?": 10,
+      "rmap": 10
+    }
+  }
+}

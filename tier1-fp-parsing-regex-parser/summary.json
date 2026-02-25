@@ -1,0 +1,42 @@
+{
+  "total": 96,
+  "train": 79,
+  "eval": 17,
+  "families": {
+    "bugfix": {
+      "total": 16,
+      "eval": 2,
+      "train": 14
+    },
+    "composition": {
+      "total": 32,
+      "eval": 9,
+      "train": 23
+    },
+    "spec_to_code": {
+      "total": 24,
+      "eval": 3,
+      "train": 21
+    },
+    "translation": {
+      "total": 24,
+      "eval": 3,
+      "train": 21
+    }
+  },
+  "difficulty": {
+    "easy": 25,
+    "hard": 32,
+    "medium": 39
+  },
+  "source_functions": {
+    "apply-postfix-op": 12,
+    "compile-anchor": 12,
+    "compile-lookahead": 12,
+    "compile-repeat": 12,
+    "parse-alt": 12,
+    "parse-class-range": 12,
+    "parse-interval": 12,
+    "parse-seq": 12
+  }
+}
