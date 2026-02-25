@@ -1,50 +1,50 @@
 {
-  "total": 96,
-  "train": 62,
-  "eval": 34,
+  "total": 128,
+  "train": 102,
+  "eval": 26,
   "families": {
     "bugfix": {
-      "total": 16,
-      "eval": 4,
-      "train": 12
+      "total": 24,
+      "eval": 3,
+      "train": 21
     },
     "composition": {
-      "total": 32,
-      "eval": 6,
-      "train": 26
+      "total": 40,
+      "eval": 15,
+      "train": 25
     },
     "spec_to_code": {
       "total": 32,
-      "eval": 20,
-      "train": 12
+      "eval": 4,
+      "train": 28
     },
     "translation": {
-      "total": 16,
+      "total": 32,
       "eval": 4,
-      "train": 12
+      "train": 28
     }
   },
   "difficulty": {
-    "easy": 23,
-    "hard": 32,
-    "medium": 41
+    "easy": 31,
+    "hard": 44,
+    "medium": 53
   },
   "source_functions": {
     "heap->list": 10,
     "heap-delete-min": 10,
-    "heap-delete-top-by": 2,
+    "heap-delete-top-by": 6,
     "heap-empty?": 8,
-    "heap-fold": 2,
+    "heap-fold": 6,
     "heap-insert": 11,
-    "heap-insert-by": 2,
+    "heap-insert-by": 6,
     "heap-merge": 11,
-    "heap-merge-by": 2,
-    "heap-min": 2,
+    "heap-merge-by": 6,
+    "heap-min": 6,
     "heap-pop": 10,
     "heap-size": 11,
-    "heapsort": 2,
-    "heapsort-by": 2,
-    "list->heap-by": 2,
+    "heapsort": 6,
+    "heapsort-by": 6,
+    "list->heap-by": 6,
     "make-heap-node": 9
   }
 }

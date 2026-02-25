@@ -285,17 +285,25 @@ VERIFY_BY_FUNCTION = {
 }
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9!$%&*+./:<=>?@^_~-]+")
-TRANSLATION_FUNCTIONS = CORE_FUNCTIONS
+TRANSLATION_FUNCTIONS = FUNCTION_ORDER
 
 PYTHON_SNIPPETS = {
     "heap-empty?": "def heap_empty(heap):\n    return heap == 'heap-empty'",
     "make-heap-node": "def make_heap_node(value, left, right):\n    rank_l = heap_rank(left)\n    rank_r = heap_rank(right)\n    if rank_l >= rank_r:\n        return heap_node(1 + rank_r, value, left, right)\n    return heap_node(1 + rank_l, value, right, left)",
     "heap-merge": "def heap_merge(h1, h2):\n    if heap_empty(h1):\n        return h2\n    if heap_empty(h2):\n        return h1\n    v1 = heap_value(h1)\n    v2 = heap_value(h2)\n    if v1 <= v2:\n        return make_heap_node(v1, heap_left(h1), heap_merge(heap_right(h1), h2))\n    return make_heap_node(v2, heap_left(h2), heap_merge(h1, heap_right(h2)))",
     "heap-insert": "def heap_insert(elem, heap):\n    return heap_merge(heap_node(1, elem, heap_empty_const, heap_empty_const), heap)",
+    "heap-min": "def heap_min(heap):\n    if heap_empty(heap):\n        raise ValueError('Cannot get min of empty heap')\n    return heap_value(heap)",
     "heap-delete-min": "def heap_delete_min(heap):\n    if heap_empty(heap):\n        raise ValueError('Cannot delete from empty heap')\n    return heap_merge(heap_left(heap), heap_right(heap))",
     "heap-pop": "def heap_pop(heap):\n    if heap_empty(heap):\n        raise ValueError('Cannot pop from empty heap')\n    return (heap_merge(heap_left(heap), heap_right(heap)), heap_value(heap))",
     "heap-size": "def heap_size(heap):\n    if heap_empty(heap):\n        return 0\n    return 1 + heap_size(heap_left(heap)) + heap_size(heap_right(heap))",
+    "heap-merge-by": "def heap_merge_by(cmp, h1, h2):\n    if heap_empty(h1):\n        return h2\n    if heap_empty(h2):\n        return h1\n    v1 = heap_value(h1)\n    v2 = heap_value(h2)\n    if cmp(v1, v2):\n        return make_heap_node(v1, heap_left(h1), heap_merge_by(cmp, heap_right(h1), h2))\n    return make_heap_node(v2, heap_left(h2), heap_merge_by(cmp, h1, heap_right(h2)))",
+    "heap-insert-by": "def heap_insert_by(cmp, elem, heap):\n    return heap_merge_by(cmp, heap_node(1, elem, heap_empty_const, heap_empty_const), heap)",
+    "heap-delete-top-by": "def heap_delete_top_by(cmp, heap):\n    if heap_empty(heap):\n        raise ValueError('Cannot delete from empty heap')\n    return heap_merge_by(cmp, heap_left(heap), heap_right(heap))",
+    "heap-fold": "def heap_fold(fn, init, heap):\n    if heap_empty(heap):\n        return init\n    acc = fn(init, heap_value(heap))\n    acc = heap_fold(fn, acc, heap_right(heap))\n    return heap_fold(fn, acc, heap_left(heap))",
+    "list->heap-by": "def list_to_heap_by(cmp, xs):\n    h = heap_empty_const\n    for x in xs:\n        h = heap_insert_by(cmp, x, h)\n    return h",
     "heap->list": "def heap_to_list(heap):\n    if heap_empty(heap):\n        return []\n    return [heap_min(heap)] + heap_to_list(heap_delete_min(heap))",
+    "heapsort": "def heapsort(xs):\n    return heap_to_list(list_to_heap(xs))",
+    "heapsort-by": "def heapsort_by(cmp, xs):\n    h = list_to_heap_by(cmp, xs)\n    acc = []\n    while not heap_empty(h):\n        acc.append(heap_value(h))\n        h = heap_delete_top_by(cmp, h)\n    return acc",
 }
 
 CHEZ_SNIPPETS = {
@@ -303,10 +311,18 @@ CHEZ_SNIPPETS = {
     "make-heap-node": "(define (mk-node v l r)\n  (let ((rl (heap-rank l))\n        (rr (heap-rank r)))\n    (if (>= rl rr)\n        (heap-node (+ rr 1) v l r)\n        (heap-node (+ rl 1) v r l))))",
     "heap-merge": "(define (merge0 a b)\n  (cond\n    ((heap-empty? a) b)\n    ((heap-empty? b) a)\n    (else\n      (let ((va (heap-value a))\n            (vb (heap-value b)))\n        (if (<= va vb)\n            (make-heap-node va (heap-left a) (merge0 (heap-right a) b))\n            (make-heap-node vb (heap-left b) (merge0 a (heap-right b))))))))",
     "heap-insert": "(define (insert0 x h)\n  (heap-merge (heap-node 1 x heap-empty heap-empty) h))",
+    "heap-min": "(define (peek0 h)\n  (if (heap-empty? h)\n      (error 'heap-min \"Cannot get min of empty heap\")\n      (heap-value h)))",
     "heap-delete-min": "(define (delete-min0 h)\n  (if (heap-empty? h)\n      (error 'heap-delete-min \"Cannot delete from empty heap\")\n      (heap-merge (heap-left h) (heap-right h))))",
     "heap-pop": "(define (pop0 h)\n  (if (heap-empty? h)\n      (error 'heap-pop \"Cannot pop from empty heap\")\n      (values (heap-merge (heap-left h) (heap-right h))\n              (heap-value h))))",
     "heap-size": "(define (size0 h)\n  (if (heap-empty? h)\n      0\n      (+ 1 (size0 (heap-left h)) (size0 (heap-right h)))))",
+    "heap-merge-by": "(define (merge-by0 cmp a b)\n  (cond\n    ((heap-empty? a) b)\n    ((heap-empty? b) a)\n    (else\n      (let ((va (heap-value a))\n            (vb (heap-value b)))\n        (if (cmp va vb)\n            (make-heap-node va (heap-left a) (merge-by0 cmp (heap-right a) b))\n            (make-heap-node vb (heap-left b) (merge-by0 cmp a (heap-right b))))))))",
+    "heap-insert-by": "(define (insert-by0 cmp x h)\n  (heap-merge-by cmp (heap-node 1 x heap-empty heap-empty) h))",
+    "heap-delete-top-by": "(define (delete-top-by0 cmp h)\n  (if (heap-empty? h)\n      (error 'heap-delete-top-by \"Cannot delete from empty heap\")\n      (heap-merge-by cmp (heap-left h) (heap-right h))))",
+    "heap-fold": "(define (fold0 fn init h)\n  (if (heap-empty? h)\n      init\n      (let* ((acc (fn init (heap-value h)))\n             (acc-right (fold0 fn acc (heap-right h))))\n        (fold0 fn acc-right (heap-left h)))))",
+    "list->heap-by": "(define (list->heap-by0 cmp xs)\n  (fold-left (lambda (h x) (heap-insert-by cmp x h)) heap-empty xs))",
     "heap->list": "(define (to-list h)\n  (if (heap-empty? h)\n      '()\n      (cons (heap-min h) (to-list (heap-delete-min h)))))",
+    "heapsort": "(define (heapsort0 xs)\n  (heap->list (list->heap xs)))",
+    "heapsort-by": "(define (heapsort-by0 cmp xs)\n  (let loop ((h (list->heap-by cmp xs)) (acc '()))\n    (if (heap-empty? h)\n        (reverse acc)\n        (loop (heap-delete-top-by cmp h)\n              (cons (heap-value h) acc)))))",
 }
 
 BUGGY_CASES = [
@@ -351,6 +367,11 @@ BUGGY_CASES = [
         "note": "Insert must add elem for non-empty heaps too.",
     },
     {
+        "fn": "heap-min",
+        "buggy": "(define (heap-min heap)\n  (heap-value heap))",
+        "note": "heap-min must reject empty heaps instead of blindly reading heap-value.",
+    },
+    {
         "fn": "heap-delete-min",
         "buggy": "(define (heap-delete-min heap)\n  (heap-right heap))",
         "note": "Deleting min must merge left and right sub-heaps.",
@@ -381,6 +402,31 @@ BUGGY_CASES = [
         "note": "Size must include both subtrees.",
     },
     {
+        "fn": "heap-merge-by",
+        "buggy": "(define (heap-merge-by cmp h1 h2)\n  (heap-merge h1 h2))",
+        "note": "Comparator-aware merge must honor cmp, not hardcode min-heap ordering.",
+    },
+    {
+        "fn": "heap-insert-by",
+        "buggy": "(define (heap-insert-by cmp elem heap)\n  (heap-merge-by cmp heap heap))",
+        "note": "Comparator insert must include the new element; this version discards elem.",
+    },
+    {
+        "fn": "heap-delete-top-by",
+        "buggy": "(define (heap-delete-top-by cmp heap)\n  (heap-delete-min heap))",
+        "note": "Comparator delete must use heap-merge-by with cmp, not fixed min-heap delete.",
+    },
+    {
+        "fn": "heap-fold",
+        "buggy": "(define (heap-fold fn init heap)\n  (if (heap-empty? heap)\n      init\n      (heap-fold fn (fn init (heap-value heap)) (heap-left heap))))",
+        "note": "Fold must traverse both branches; left-only traversal drops elements.",
+    },
+    {
+        "fn": "list->heap-by",
+        "buggy": "(define (list->heap-by cmp lst)\n  (fold-left (lambda (h x) (heap-insert x h)) heap-empty lst))",
+        "note": "Comparator-aware constructor must use heap-insert-by with cmp.",
+    },
+    {
         "fn": "heap->list",
         "buggy": "(define (heap->list heap)\n  (if (heap-empty? heap)\n      '()\n      (cons (heap-min heap)\n            (heap->list (heap-right heap)))))",
         "note": "Extraction must repeatedly delete min; traversing only right subtree drops elements.",
@@ -389,6 +435,16 @@ BUGGY_CASES = [
         "fn": "heap->list",
         "buggy": "(define (heap->list heap)\n  '())",
         "note": "Non-empty heaps must produce all elements in ascending order.",
+    },
+    {
+        "fn": "heapsort",
+        "buggy": "(define (heapsort lst)\n  (reverse (heap->list (list->heap lst))))",
+        "note": "heapsort should produce ascending order directly, not reverse it.",
+    },
+    {
+        "fn": "heapsort-by",
+        "buggy": "(define (heapsort-by cmp lst)\n  (heap->list (list->heap lst)))",
+        "note": "Comparator-based sort must use comparator-aware heap operations.",
     },
 ]
 
@@ -672,13 +728,23 @@ composition_cases = [
     ("heap-size", "Check that merged heap size matches length of its extracted list.", "(let ([m (heap-merge (list->heap '(1 4 7)) (list->heap '(2 5 8 9)))]) (= (heap-size m) (length (heap->list m))))", "(equal? (let ([m (heap-merge (list->heap '(1 4 7)) (list->heap '(2 5 8 9)))]) (= (heap-size m) (length (heap->list m)))) #t)", "medium", ["integration"]),
     ("make-heap-node", "Return #t iff make-heap-node output satisfies leftist rank ordering.", "(let* ([a (heap-node 1 8 heap-empty heap-empty)] [b (heap-node 2 9 (heap-node 1 11 heap-empty heap-empty) heap-empty)] [n (make-heap-node 7 a b)]) (>= (heap-rank (heap-left n)) (heap-rank (heap-right n))))", "(equal? (let* ([a (heap-node 1 8 heap-empty heap-empty)] [b (heap-node 2 9 (heap-node 1 11 heap-empty heap-empty) heap-empty)] [n (make-heap-node 7 a b)]) (>= (heap-rank (heap-left n)) (heap-rank (heap-right n)))) #t)", "medium", ["property"]),
     ("heap->list", "Sort '(9 1 5 3 7) by going through list->heap and heap->list.", "(heap->list (list->heap '(9 1 5 3 7)))", "(equal? (heap->list (list->heap '(9 1 5 3 7))) '(1 3 5 7 9))", "medium", ["integration"]),
+
+    # expanded APIs
+    ("heap-min", "Read minimum element from a non-empty heap.", "(heap-min (list->heap '(5 2 8 1)))", "(equal? (heap-min (list->heap '(5 2 8 1))) 1)", "easy", ["direct"]),
+    ("heap-merge-by", "Merge two max-heaps with comparator > and pop in order.", "(let loop ([h (heap-merge-by > (list->heap-by > '(7 3)) (list->heap-by > '(6 2)))] [acc '()]) (if (heap-empty? h) (reverse acc) (loop (heap-delete-top-by > h) (cons (heap-value h) acc))))", "(equal? (let loop ([h (heap-merge-by > (list->heap-by > '(7 3)) (list->heap-by > '(6 2)))] [acc '()]) (if (heap-empty? h) (reverse acc) (loop (heap-delete-top-by > h) (cons (heap-value h) acc)))) '(7 6 3 2))", "hard", ["comparator"]),
+    ("heap-insert-by", "Insert with comparator > and check top value.", "(heap-value (heap-insert-by > 9 (list->heap-by > '(5 7 2))))", "(equal? (heap-value (heap-insert-by > 9 (list->heap-by > '(5 7 2)))) 9)", "medium", ["comparator"]),
+    ("heap-delete-top-by", "Delete top element with comparator > and inspect next top.", "(let* ([h (list->heap-by > '(4 1 7 3))] [h2 (heap-delete-top-by > h)]) (list (heap-value h) (heap-value h2) (heap-size h2)))", "(equal? (let* ([h (list->heap-by > '(4 1 7 3))] [h2 (heap-delete-top-by > h)]) (list (heap-value h) (heap-value h2) (heap-size h2))) '(7 4 3))", "hard", ["comparator"]),
+    ("heap-fold", "Fold heap values into a sum.", "(heap-fold (lambda (acc x) (+ acc x)) 0 (list->heap '(5 1 4 3)))", "(equal? (heap-fold (lambda (acc x) (+ acc x)) 0 (list->heap '(5 1 4 3))) 13)", "medium", ["direct"]),
+    ("list->heap-by", "Build comparator heap and extract descending order.", "(let loop ([h (list->heap-by > '(3 7 4 6))] [acc '()]) (if (heap-empty? h) (reverse acc) (loop (heap-delete-top-by > h) (cons (heap-value h) acc))))", "(equal? (let loop ([h (list->heap-by > '(3 7 4 6))] [acc '()]) (if (heap-empty? h) (reverse acc) (loop (heap-delete-top-by > h) (cons (heap-value h) acc)))) '(7 6 4 3))", "medium", ["comparator"]),
+    ("heapsort", "Sort list with heapsort.", "(heapsort '(9 1 5 3 7))", "(equal? (heapsort '(9 1 5 3 7)) '(1 3 5 7 9))", "easy", ["direct"]),
+    ("heapsort-by", "Sort descending with heapsort-by comparator >.", "(heapsort-by > '(9 1 5 3 7))", "(equal? (heapsort-by > '(9 1 5 3 7)) '(9 7 5 3 1))", "hard", ["comparator"]),
 ]
 
 for fn, prompt, gt, verify, diff, tags in composition_cases:
     add_composition(fn, prompt, gt, verify, diff, tags)
 
-if sum(1 for s in samples if s["family"] == "composition") != 32:
-    raise ValueError("composition family must contain exactly 32 samples")
+if sum(1 for s in samples if s["family"] == "composition") < 32:
+    raise ValueError("composition family must contain at least 32 samples")
 
 # -----------------------------------------------------------------------------
 # Split train/eval

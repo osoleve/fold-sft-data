@@ -597,27 +597,45 @@ VERIFY_BY_FUNCTION = {
 }
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9!$%&*+./:<=>?@^_~-]+")
-TRANSLATION_FUNCTIONS = CORE_FUNCTIONS
+TRANSLATION_FUNCTIONS = FUNCTION_ORDER
 
 PYTHON_SNIPPETS = {
     "hamt-empty?": "def hamt_empty_p(x):\n    return x == 'hamt-empty'",
     "hamt-lookup": "def hamt_lookup(key, hamt):\n    h = hamt_hash_key(key)\n    return hamt_lookup_hash(h, key, hamt, 0)",
+    "hamt-lookup-or": "def hamt_lookup_or_fn(key, hamt, default):\n    h = hamt_hash_key(key)\n    return hamt_lookup_or_hash(h, key, hamt, 0, default)",
     "hamt-has-key?": "def hamt_has_key(key, hamt):\n    sentinel = ['not-found']\n    return sentinel is not hamt_lookup_or(key, hamt, sentinel)",
     "hamt-assoc": "def hamt_assoc(key, value, hamt):\n    h = hamt_hash_key(key)\n    return hamt_assoc_hash(h, key, value, hamt, 0)",
     "hamt-dissoc": "def hamt_dissoc(key, hamt):\n    h = hamt_hash_key(key)\n    return hamt_dissoc_hash(h, key, hamt, 0)",
+    "hamt-fold": "def hamt_fold_fn(f, init, hamt):\n    if hamt_empty_p(hamt):\n        return init\n    if hamt_leaf_p(hamt):\n        return f(init, hamt_leaf_key(hamt), hamt_leaf_value(hamt))\n    if hamt_collision_p(hamt):\n        acc = init\n        for k, v in hamt_collision_entries(hamt):\n            acc = f(acc, k, v)\n        return acc\n    if hamt_node_p(hamt):\n        acc = init\n        for child in hamt_node_children(hamt):\n            acc = hamt_fold_fn(f, acc, child)\n        return acc\n    return init",
     "hamt-size": "def hamt_size(hamt):\n    return hamt_fold(lambda acc, k, v: acc + 1, 0, hamt)",
+    "hamt-keys": "def hamt_keys(hamt):\n    return hamt_fold(lambda acc, k, v: [k] + acc, [], hamt)",
+    "hamt-values": "def hamt_values(hamt):\n    return hamt_fold(lambda acc, k, v: [v] + acc, [], hamt)",
+    "hamt-entries": "def hamt_entries(hamt):\n    return hamt_fold(lambda acc, k, v: [(k, v)] + acc, [], hamt)",
+    "hamt-map-values": "def hamt_map_values(f, hamt):\n    if hamt_empty_p(hamt):\n        return hamt_empty\n    if hamt_leaf_p(hamt):\n        return make_hamt_leaf(hamt_leaf_hash(hamt), hamt_leaf_key(hamt), f(hamt_leaf_value(hamt)))\n    if hamt_collision_p(hamt):\n        return make_hamt_collision(hamt_collision_hash(hamt), [(k, f(v)) for (k, v) in hamt_collision_entries(hamt)])\n    if hamt_node_p(hamt):\n        return make_hamt_node(hamt_node_bitmap(hamt), [hamt_map_values(f, child) for child in hamt_node_children(hamt)])\n    return hamt",
+    "hamt-filter": "def hamt_filter(pred, hamt):\n    def step(acc, k, v):\n        return hamt_assoc(k, v, acc) if pred(k, v) else acc\n    return hamt_fold(step, hamt_empty, hamt)",
+    "hamt-merge": "def hamt_merge(h1, h2):\n    return hamt_fold(lambda acc, k, v: hamt_assoc(k, v, acc), h1, h2)",
     "hamt-merge-with": "def hamt_merge_with(f, h1, h2):\n    def step(acc, k, v):\n        if hamt_has_key(k, acc):\n            return hamt_assoc(k, f(hamt_lookup(k, acc), v), acc)\n        return hamt_assoc(k, v, acc)\n    return hamt_fold(step, h1, h2)",
+    "dict->hamt": "def dict_to_hamt(d):\n    acc = hamt_empty\n    for k, v in d:\n        acc = hamt_assoc(k, v, acc)\n    return acc",
     "alist->hamt": "def alist_to_hamt(alist):\n    return dict_to_hamt(alist)",
 }
 
 CHEZ_SNIPPETS = {
     "hamt-empty?": "(define (hamt-empty0? x)\n  (eq? x 'hamt-empty))",
     "hamt-lookup": "(define (hamt-get key h)\n  (let ((hash (hamt-hash-key key)))\n    (hamt-lookup-hash hash key h 0)))",
+    "hamt-lookup-or": "(define (hamt-get-or key h default)\n  (let ((hash (hamt-hash-key key)))\n    (hamt-lookup-or-hash hash key h 0 default)))",
     "hamt-has-key?": "(define (hamt-has0? k h)\n  (let ((sentinel (list 'not-found)))\n    (not (eq? sentinel (hamt-lookup-or k h sentinel)))))",
     "hamt-assoc": "(define (hamt-put k v h)\n  (let ((hash (hamt-hash-key k)))\n    (hamt-assoc-hash hash k v h 0)))",
     "hamt-dissoc": "(define (hamt-del k h)\n  (let ((hash (hamt-hash-key k)))\n    (hamt-dissoc-hash hash k h 0)))",
+    "hamt-fold": "(define (hamt-fold0 f init h)\n  (cond\n    ((hamt-empty? h) init)\n    ((hamt-leaf? h) (f init (hamt-leaf-key h) (hamt-leaf-value h)))\n    ((hamt-collision? h)\n     (fold-left (lambda (acc pair) (f acc (car pair) (cdr pair)))\n                init\n                (hamt-collision-entries h)))\n    ((hamt-node? h)\n     (fold-left (lambda (acc child) (hamt-fold0 f acc child))\n                init\n                (hamt-node-children h)))\n    (else init)))",
     "hamt-size": "(define (hamt-count h)\n  (hamt-fold (lambda (acc k v) (+ acc 1)) 0 h))",
+    "hamt-keys": "(define (hamt-keys0 h)\n  (hamt-fold (lambda (acc k v) (cons k acc)) '() h))",
+    "hamt-values": "(define (hamt-values0 h)\n  (hamt-fold (lambda (acc k v) (cons v acc)) '() h))",
+    "hamt-entries": "(define (hamt-entries0 h)\n  (hamt-fold (lambda (acc k v) (cons (cons k v) acc)) '() h))",
+    "hamt-map-values": "(define (hamt-map-values0 f h)\n  (cond\n    ((hamt-empty? h) hamt-empty)\n    ((hamt-leaf? h)\n     (make-hamt-leaf (hamt-leaf-hash h)\n                     (hamt-leaf-key h)\n                     (f (hamt-leaf-value h))))\n    ((hamt-collision? h)\n     (make-hamt-collision\n       (hamt-collision-hash h)\n       (map (lambda (pair) (cons (car pair) (f (cdr pair))))\n            (hamt-collision-entries h))))\n    ((hamt-node? h)\n     (make-hamt-node\n       (hamt-node-bitmap h)\n       (map (lambda (child) (hamt-map-values0 f child))\n            (hamt-node-children h))))\n    (else h)))",
+    "hamt-filter": "(define (hamt-filter0 pred h)\n  (hamt-fold (lambda (acc k v)\n               (if (pred k v)\n                   (hamt-assoc k v acc)\n                   acc))\n             hamt-empty\n             h))",
+    "hamt-merge": "(define (hamt-merge0 h1 h2)\n  (hamt-fold (lambda (acc k v)\n               (hamt-assoc k v acc))\n             h1 h2))",
     "hamt-merge-with": "(define (hamt-merge0 f h1 h2)\n  (hamt-fold (lambda (acc k v)\n               (if (hamt-has-key? k acc)\n                   (hamt-assoc k (f (hamt-lookup k acc) v) acc)\n                   (hamt-assoc k v acc)))\n             h1 h2))",
+    "dict->hamt": "(define (dict->hamt0 d)\n  (fold-left (lambda (acc pair)\n               (hamt-assoc (car pair) (cdr pair) acc))\n             hamt-empty d))",
     "alist->hamt": "(define (alist->hamt0 al)\n  (dict->hamt al))",
 }
 
@@ -641,6 +659,11 @@ BUGGY_CASES = [
         "fn": "hamt-lookup",
         "buggy": "(define (hamt-lookup key hamt)\n  (let ([hash (hamt-hash-key key)])\n    (hamt-lookup-hash hash key hamt *hamt-bits*)))",
         "note": "Recursive lookup must start at shift 0.",
+    },
+    {
+        "fn": "hamt-lookup-or",
+        "buggy": "(define (hamt-lookup-or key hamt default)\n  (let ([hash (hamt-hash-key key)])\n    (hamt-lookup-or-hash hash key hamt 0 #f)))",
+        "note": "Function must return the provided default on miss, not hardcoded #f.",
     },
     {
         "fn": "hamt-has-key?",
@@ -673,6 +696,11 @@ BUGGY_CASES = [
         "note": "Deletion recursion must start at shift 0.",
     },
     {
+        "fn": "hamt-fold",
+        "buggy": "(define (hamt-fold f init hamt)\n  (cond\n    [(hamt-empty? hamt) init]\n    [(hamt-leaf? hamt)\n     (f init (hamt-leaf-value hamt) (hamt-leaf-key hamt))]\n    [else init]))",
+        "note": "Leaf fold argument order must be (acc key value), and node/collision traversal cannot be omitted.",
+    },
+    {
         "fn": "hamt-size",
         "buggy": "(define (hamt-size hamt)\n  (hamt-fold (lambda (acc k v) (+ acc v)) 0 hamt))",
         "note": "Size should count entries, not sum values.",
@@ -681,6 +709,36 @@ BUGGY_CASES = [
         "fn": "hamt-size",
         "buggy": "(define (hamt-size hamt)\n  (hamt-fold (lambda (acc k v) (+ acc 1)) 1 hamt))",
         "note": "Initial count must be 0.",
+    },
+    {
+        "fn": "hamt-keys",
+        "buggy": "(define (hamt-keys hamt)\n  (hamt-fold (lambda (acc k v) (cons v acc)) '() hamt))",
+        "note": "Key collection must accumulate keys, not values.",
+    },
+    {
+        "fn": "hamt-values",
+        "buggy": "(define (hamt-values hamt)\n  (hamt-fold (lambda (acc k v) (cons k acc)) '() hamt))",
+        "note": "Value collection must accumulate values, not keys.",
+    },
+    {
+        "fn": "hamt-entries",
+        "buggy": "(define (hamt-entries hamt)\n  (hamt-fold (lambda (acc k v) (cons (cons v k) acc)) '() hamt))",
+        "note": "Entry orientation must remain (key . value).",
+    },
+    {
+        "fn": "hamt-map-values",
+        "buggy": "(define (hamt-map-values f hamt)\n  (hamt-map-values (lambda (x) x) hamt))",
+        "note": "Mapping should apply the provided transformer and must not recurse infinitely.",
+    },
+    {
+        "fn": "hamt-filter",
+        "buggy": "(define (hamt-filter pred hamt)\n  (hamt-fold (lambda (acc k v)\n               (if (pred k v) acc (hamt-assoc k v acc)))\n             hamt-empty hamt))",
+        "note": "Filter predicate handling is inverted; true should keep entries.",
+    },
+    {
+        "fn": "hamt-merge",
+        "buggy": "(define (hamt-merge h1 h2)\n  (hamt-fold (lambda (acc k v)\n               (if (hamt-has-key? k acc)\n                   acc\n                   (hamt-assoc k v acc)))\n             h1 h2))",
+        "note": "Right-biased merge must overwrite collisions with values from h2.",
     },
     {
         "fn": "hamt-merge-with",
@@ -701,6 +759,11 @@ BUGGY_CASES = [
         "fn": "alist->hamt",
         "buggy": "(define (alist->hamt alist)\n  (dict->hamt (map (lambda (pair) (cons (cdr pair) (car pair))) alist)))",
         "note": "Conversion should preserve key/value orientation.",
+    },
+    {
+        "fn": "dict->hamt",
+        "buggy": "(define (dict->hamt dict)\n  (fold-left (lambda (acc pair)\n               (hamt-assoc (cdr pair) (car pair) acc))\n             hamt-empty dict))",
+        "note": "Dictionary conversion must preserve `(car pair)` as key and `(cdr pair)` as value.",
     },
 ]
 
@@ -999,6 +1062,17 @@ composition_cases = [
     ("hamt-merge-with", "Merge with resolver returning (old new) pair order for key 'k.", "(hamt-lookup 'k (hamt-merge-with (lambda (old new) (list old new)) (alist->hamt '((k . 1))) (alist->hamt '((k . 10)))))", "(equal? (hamt-lookup 'k (hamt-merge-with (lambda (old new) (list old new)) (alist->hamt '((k . 1))) (alist->hamt '((k . 10))))) '(1 10))", "hard", ["property"]),
     ("hamt-merge-with", "Merge where old value is #f and resolver should still run.", "(hamt-lookup 'k (hamt-merge-with (lambda (old new) 'hit) (alist->hamt '((k . #f))) (alist->hamt '((k . 99)))))", "(equal? (hamt-lookup 'k (hamt-merge-with (lambda (old new) 'hit) (alist->hamt '((k . #f))) (alist->hamt '((k . 99))))) 'hit)", "hard", ["property"]),
 
+    # new expanded APIs
+    ("hamt-lookup-or", "Lookup missing key with explicit fallback value.", "(hamt-lookup-or 'missing (alist->hamt '((a . 1))) 'fallback)", "(equal? (hamt-lookup-or 'missing (alist->hamt '((a . 1))) 'fallback) 'fallback)", "easy", ["direct"]),
+    ("hamt-fold", "Fold values in HAMT and return their sum.", "(hamt-fold (lambda (acc k v) (+ acc v)) 0 (alist->hamt '((a . 1) (b . 2) (c . 3))))", "(equal? (hamt-fold (lambda (acc k v) (+ acc v)) 0 (alist->hamt '((a . 1) (b . 2) (c . 3)))) 6)", "medium", ["direct"]),
+    ("hamt-keys", "Return whether key collection includes a,b,c with length 3.", "(let ([ks (hamt-keys (alist->hamt '((a . 1) (b . 2) (c . 3))))]) (and (= (length ks) 3) (not (not (member 'a ks))) (not (not (member 'b ks))) (not (not (member 'c ks)))))", "(equal? (let ([ks (hamt-keys (alist->hamt '((a . 1) (b . 2) (c . 3))))]) (and (= (length ks) 3) (not (not (member 'a ks))) (not (not (member 'b ks))) (not (not (member 'c ks))))) #t)", "medium", ["property"]),
+    ("hamt-values", "Return whether value collection includes 1,2,3 with length 3.", "(let ([vs (hamt-values (alist->hamt '((a . 1) (b . 2) (c . 3))))]) (and (= (length vs) 3) (not (not (member 1 vs))) (not (not (member 2 vs))) (not (not (member 3 vs)))))", "(equal? (let ([vs (hamt-values (alist->hamt '((a . 1) (b . 2) (c . 3))))]) (and (= (length vs) 3) (not (not (member 1 vs))) (not (not (member 2 vs))) (not (not (member 3 vs))))) #t)", "medium", ["property"]),
+    ("hamt-entries", "Convert entries to HAMT again and read back values.", "(let* ([h (alist->hamt '((x . 10) (y . 20)))] [h2 (alist->hamt (hamt-entries h))]) (list (hamt-lookup 'x h2) (hamt-lookup 'y h2) (hamt-size h2)))", "(equal? (let* ([h (alist->hamt '((x . 10) (y . 20)))] [h2 (alist->hamt (hamt-entries h))]) (list (hamt-lookup 'x h2) (hamt-lookup 'y h2) (hamt-size h2))) '(10 20 2))", "medium", ["integration"]),
+    ("hamt-map-values", "Map (+ v 10) over values and lookup transformed keys.", "(let ([m (hamt-map-values (lambda (v) (+ v 10)) (alist->hamt '((a . 1) (b . 2))))]) (list (hamt-lookup 'a m) (hamt-lookup 'b m)))", "(equal? (let ([m (hamt-map-values (lambda (v) (+ v 10)) (alist->hamt '((a . 1) (b . 2))))]) (list (hamt-lookup 'a m) (hamt-lookup 'b m))) '(11 12))", "hard", ["direct"]),
+    ("hamt-filter", "Filter entries where value > 1 and check membership/size properties.", "(let* ([f (hamt-filter (lambda (k v) (> v 1)) (alist->hamt '((a . 1) (b . 2) (c . 3))))] [ks (hamt-keys f)]) (and (= (hamt-size f) 2) (not (not (member 'b ks))) (not (not (member 'c ks))) (not (member 'a ks))))", "(equal? (let* ([f (hamt-filter (lambda (k v) (> v 1)) (alist->hamt '((a . 1) (b . 2) (c . 3))))] [ks (hamt-keys f)]) (and (= (hamt-size f) 2) (not (not (member 'b ks))) (not (not (member 'c ks))) (not (member 'a ks)))) #t)", "hard", ["integration"]),
+    ("hamt-merge", "Merge with right-bias and read conflicting key.", "(hamt-lookup 'k (hamt-merge (alist->hamt '((k . 1) (x . 2))) (alist->hamt '((k . 9) (y . 3)))) )", "(equal? (hamt-lookup 'k (hamt-merge (alist->hamt '((k . 1) (x . 2))) (alist->hamt '((k . 9) (y . 3))))) 9)", "medium", ["direct"]),
+    ("dict->hamt", "Convert dict with duplicate key and check rightmost value wins.", "(let ([h (dict->hamt '((m . 1) (n . 2) (m . 7)))]) (list (hamt-lookup 'm h) (hamt-lookup 'n h) (hamt-size h)))", "(equal? (let ([h (dict->hamt '((m . 1) (n . 2) (m . 7)))]) (list (hamt-lookup 'm h) (hamt-lookup 'n h) (hamt-size h))) '(7 2 2))", "medium", ["direct"]),
+
     # alist->hamt
     ("alist->hamt", "Convert alist ((a . 1) (b . 2)) and lookup 'a.", "(hamt-lookup 'a (alist->hamt '((a . 1) (b . 2))))", "(equal? (hamt-lookup 'a (alist->hamt '((a . 1) (b . 2)))) 1)", "medium", ["direct"]),
     ("alist->hamt", "Duplicate key in alist should keep last value.", "(hamt-lookup 'a (alist->hamt '((a . 1) (a . 7))))", "(equal? (hamt-lookup 'a (alist->hamt '((a . 1) (a . 7)))) 7)", "medium", ["property"]),
@@ -1009,8 +1083,8 @@ composition_cases = [
 for fn, prompt, gt, verify, diff, tags in composition_cases:
     add_composition(fn, prompt, gt, verify, diff, tags)
 
-if sum(1 for s in samples if s["family"] == "composition") != 32:
-    raise ValueError("composition family must contain exactly 32 samples")
+if sum(1 for s in samples if s["family"] == "composition") < 32:
+    raise ValueError("composition family must contain at least 32 samples")
 
 # -----------------------------------------------------------------------------
 # Split train/eval

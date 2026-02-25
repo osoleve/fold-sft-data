@@ -1,51 +1,51 @@
 {
-  "total": 98,
-  "train": 62,
-  "eval": 36,
+  "total": 134,
+  "train": 107,
+  "eval": 27,
   "families": {
     "bugfix": {
-      "total": 16,
+      "total": 25,
       "eval": 4,
-      "train": 12
+      "train": 21
     },
     "composition": {
-      "total": 32,
-      "eval": 6,
+      "total": 41,
+      "eval": 15,
       "train": 26
     },
     "spec_to_code": {
       "total": 34,
-      "eval": 22,
-      "train": 12
+      "eval": 4,
+      "train": 30
     },
     "translation": {
-      "total": 16,
+      "total": 34,
       "eval": 4,
-      "train": 12
+      "train": 30
     }
   },
   "difficulty": {
-    "easy": 26,
-    "hard": 39,
-    "medium": 33
+    "easy": 33,
+    "hard": 50,
+    "medium": 51
   },
   "source_functions": {
     "alist->hamt": 10,
-    "dict->hamt": 2,
+    "dict->hamt": 6,
     "hamt-assoc": 10,
     "hamt-dissoc": 10,
     "hamt-empty?": 10,
-    "hamt-entries": 2,
-    "hamt-filter": 2,
-    "hamt-fold": 2,
+    "hamt-entries": 6,
+    "hamt-filter": 6,
+    "hamt-fold": 6,
     "hamt-has-key?": 10,
-    "hamt-keys": 2,
+    "hamt-keys": 6,
     "hamt-lookup": 10,
-    "hamt-lookup-or": 2,
-    "hamt-map-values": 2,
-    "hamt-merge": 2,
+    "hamt-lookup-or": 6,
+    "hamt-map-values": 6,
+    "hamt-merge": 6,
     "hamt-merge-with": 10,
     "hamt-size": 10,
-    "hamt-values": 2
+    "hamt-values": 6
   }
 }

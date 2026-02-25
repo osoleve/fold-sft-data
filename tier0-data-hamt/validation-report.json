@@ -1,21 +1,21 @@
 {
   "status": "ok",
   "summary": {
-    "total": 98,
+    "total": 134,
     "families": {
-      "bugfix": 16,
-      "composition": 32,
+      "bugfix": 25,
+      "composition": 41,
       "spec_to_code": 34,
-      "translation": 16
+      "translation": 34
     },
     "difficulty": {
-      "easy": 26,
-      "hard": 39,
-      "medium": 33
+      "easy": 33,
+      "hard": 50,
+      "medium": 51
     },
     "splits": {
-      "eval": 36,
-      "train": 62
+      "eval": 27,
+      "train": 107
     }
   }
 }

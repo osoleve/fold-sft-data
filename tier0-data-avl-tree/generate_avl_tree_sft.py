@@ -367,28 +367,44 @@ VERIFY_BY_FUNCTION = {
 }
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9!$%&*+./:<=>?@^_~-]+")
-TRANSLATION_FUNCTIONS = CORE_FUNCTIONS
+TRANSLATION_FUNCTIONS = FUNCTION_ORDER
 
 PYTHON_SNIPPETS = {
     "avl-empty?": "def avl_empty(tree):\n    return tree == 'avl-empty'",
     "make-avl-node": "def make_avl_node(key, value, left, right):\n    return avl_node(1 + max(avl_height(left), avl_height(right)), key, value, left, right)",
     "rebalance": "def rebalance(tree):\n    bf = avl_balance_factor(tree)\n    if bf > 1:\n        if avl_balance_factor(avl_left(tree)) < 0:\n            return rotate_right(make_avl_node(avl_key(tree), avl_value(tree), rotate_left(avl_left(tree)), avl_right(tree)))\n        return rotate_right(tree)\n    if bf < -1:\n        if avl_balance_factor(avl_right(tree)) > 0:\n            return rotate_left(make_avl_node(avl_key(tree), avl_value(tree), avl_left(tree), rotate_right(avl_right(tree))))\n        return rotate_left(tree)\n    return tree",
+    "avl-lookup": "def avl_lookup(key, tree):\n    return avl_lookup_by(lt, key, tree)",
     "avl-lookup-by": "def avl_lookup_by(cmp, key, tree):\n    if avl_empty(tree):\n        return False\n    k = avl_key(tree)\n    if cmp(key, k):\n        return avl_lookup_by(cmp, key, avl_left(tree))\n    if cmp(k, key):\n        return avl_lookup_by(cmp, key, avl_right(tree))\n    return avl_value(tree)",
+    "avl-contains?": "def avl_contains(key, tree):\n    return avl_contains_by(lt, key, tree)",
+    "avl-insert": "def avl_insert(key, value, tree):\n    return avl_insert_by(lt, key, value, tree)",
     "avl-insert-by": "def avl_insert_by(cmp, key, value, tree):\n    if avl_empty(tree):\n        return make_avl_node(key, value, avl_empty_const, avl_empty_const)\n    k = avl_key(tree)\n    v = avl_value(tree)\n    left = avl_left(tree)\n    right = avl_right(tree)\n    if cmp(key, k):\n        return rebalance(make_avl_node(k, v, avl_insert_by(cmp, key, value, left), right))\n    if cmp(k, key):\n        return rebalance(make_avl_node(k, v, left, avl_insert_by(cmp, key, value, right)))\n    return make_avl_node(key, value, left, right)",
     "avl-delete-min-by": "def avl_delete_min_by(cmp, tree):\n    if avl_empty(tree):\n        raise ValueError('Cannot delete from empty tree')\n    if avl_empty(avl_left(tree)):\n        return avl_right(tree)\n    return rebalance(make_avl_node(avl_key(tree), avl_value(tree), avl_delete_min_by(cmp, avl_left(tree)), avl_right(tree)))",
+    "avl-delete": "def avl_delete(key, tree):\n    return avl_delete_by(lt, key, tree)",
     "avl-delete-by": "def avl_delete_by(cmp, key, tree):\n    if avl_empty(tree):\n        return tree\n    k = avl_key(tree)\n    v = avl_value(tree)\n    left = avl_left(tree)\n    right = avl_right(tree)\n    if cmp(key, k):\n        return rebalance(make_avl_node(k, v, avl_delete_by(cmp, key, left), right))\n    if cmp(k, key):\n        return rebalance(make_avl_node(k, v, left, avl_delete_by(cmp, key, right)))\n    if avl_empty(left):\n        return right\n    if avl_empty(right):\n        return left\n    succ_key, succ_val = avl_min_node(right)\n    return rebalance(make_avl_node(succ_key, succ_val, left, avl_delete_min_by(cmp, right)))",
+    "avl-range": "def avl_range(lo, hi, tree):\n    return avl_range_by(lt, lo, hi, tree)",
     "avl-range-by": "def avl_range_by(cmp, lo, hi, tree):\n    if avl_empty(tree):\n        return []\n    k = avl_key(tree)\n    v = avl_value(tree)\n    left = avl_range_by(cmp, lo, hi, avl_left(tree)) if cmp(lo, k) else []\n    mid = [(k, v)] if (not cmp(k, lo) and not cmp(hi, k)) else []\n    right = avl_range_by(cmp, lo, hi, avl_right(tree)) if cmp(k, hi) else []\n    return left + mid + right",
+    "avl-keys-between": "def avl_keys_between(lo, hi, tree):\n    return [k for (k, _) in avl_range(lo, hi, tree)]",
+    "avl-less-than": "def avl_less_than(bound, tree):\n    if avl_empty(tree):\n        return []\n    k = avl_key(tree)\n    if k < bound:\n        return avl_less_than(bound, avl_left(tree)) + [(k, avl_value(tree))] + avl_less_than(bound, avl_right(tree))\n    return avl_less_than(bound, avl_left(tree))",
+    "avl-greater-than": "def avl_greater_than(bound, tree):\n    if avl_empty(tree):\n        return []\n    k = avl_key(tree)\n    if k > bound:\n        return avl_greater_than(bound, avl_left(tree)) + [(k, avl_value(tree))] + avl_greater_than(bound, avl_right(tree))\n    return avl_greater_than(bound, avl_right(tree))",
 }
 
 CHEZ_SNIPPETS = {
     "avl-empty?": "(define (empty-tree? t)\n  (eq? t 'avl-empty))",
     "make-avl-node": "(define (mk-node k v l r)\n  (avl-node (+ 1 (max (avl-height l) (avl-height r)))\n            k v l r))",
     "rebalance": "(define (rebalance0 t)\n  (let ((bf (avl-balance-factor t)))\n    (cond\n      ((> bf 1)\n       (if (< (avl-balance-factor (avl-left t)) 0)\n           (rotate-right (make-avl-node (avl-key t) (avl-value t)\n                                        (rotate-left (avl-left t))\n                                        (avl-right t)))\n           (rotate-right t)))\n      ((< bf -1)\n       (if (> (avl-balance-factor (avl-right t)) 0)\n           (rotate-left (make-avl-node (avl-key t) (avl-value t)\n                                       (avl-left t)\n                                       (rotate-right (avl-right t))))\n           (rotate-left t)))\n      (else t))))",
+    "avl-lookup": "(define (lookup-default k t)\n  (avl-lookup-by < k t))",
     "avl-lookup-by": "(define (lookup0 cmp key t)\n  (if (avl-empty? t)\n      #f\n      (let ((k (avl-key t)))\n        (cond\n          ((cmp key k) (lookup0 cmp key (avl-left t)))\n          ((cmp k key) (lookup0 cmp key (avl-right t)))\n          (else (avl-value t))))))",
+    "avl-contains?": "(define (contains0 key t)\n  (avl-contains-by? < key t))",
+    "avl-insert": "(define (insert-default key value t)\n  (avl-insert-by < key value t))",
     "avl-insert-by": "(define (insert0 cmp key value t)\n  (if (avl-empty? t)\n      (make-avl-node key value avl-empty avl-empty)\n      (let ((k (avl-key t))\n            (v (avl-value t))\n            (l (avl-left t))\n            (r (avl-right t)))\n        (cond\n          ((cmp key k) (rebalance (make-avl-node k v (insert0 cmp key value l) r)))\n          ((cmp k key) (rebalance (make-avl-node k v l (insert0 cmp key value r))))\n          (else (make-avl-node key value l r))))))",
     "avl-delete-min-by": "(define (delete-min0 cmp t)\n  (if (avl-empty? t)\n      (error 'avl-delete-min \"Cannot delete from empty tree\")\n      (if (avl-empty? (avl-left t))\n          (avl-right t)\n          (rebalance (make-avl-node (avl-key t)\n                                    (avl-value t)\n                                    (delete-min0 cmp (avl-left t))\n                                    (avl-right t))))))",
+    "avl-delete": "(define (delete-default key t)\n  (avl-delete-by < key t))",
     "avl-delete-by": "(define (delete0 cmp key t)\n  (if (avl-empty? t)\n      t\n      (let ((k (avl-key t))\n            (v (avl-value t))\n            (l (avl-left t))\n            (r (avl-right t)))\n        (cond\n          ((cmp key k) (rebalance (make-avl-node k v (delete0 cmp key l) r)))\n          ((cmp k key) (rebalance (make-avl-node k v l (delete0 cmp key r))))\n          (else\n            (cond\n              ((avl-empty? l) r)\n              ((avl-empty? r) l)\n              (else\n                (let ((succ (avl-min-node r)))\n                  (rebalance (make-avl-node (car succ)\n                                            (cdr succ)\n                                            l\n                                            (avl-delete-min-by cmp r)))))))))))",
+    "avl-range": "(define (range-default lo hi t)\n  (avl-range-by < lo hi t))",
     "avl-range-by": "(define (range0 cmp lo hi t)\n  (if (avl-empty? t)\n      '()\n      (let ((k (avl-key t))\n            (v (avl-value t)))\n        (append\n          (if (cmp lo k)\n              (range0 cmp lo hi (avl-left t))\n              '())\n          (if (and (not (cmp k lo)) (not (cmp hi k)))\n              (list (cons k v))\n              '())\n          (if (cmp k hi)\n              (range0 cmp lo hi (avl-right t))\n              '())))))",
+    "avl-keys-between": "(define (keys-between0 lo hi t)\n  (map car (avl-range lo hi t)))",
+    "avl-less-than": "(define (lt0 bound t)\n  (if (avl-empty? t)\n      '()\n      (let ((k (avl-key t)))\n        (if (< k bound)\n            (append (lt0 bound (avl-left t))\n                    (list (cons k (avl-value t)))\n                    (lt0 bound (avl-right t)))\n            (lt0 bound (avl-left t))))))",
+    "avl-greater-than": "(define (gt0 bound t)\n  (if (avl-empty? t)\n      '()\n      (let ((k (avl-key t)))\n        (if (> k bound)\n            (append (gt0 bound (avl-left t))\n                    (list (cons k (avl-value t)))\n                    (gt0 bound (avl-right t)))\n            (gt0 bound (avl-right t))))))",
 }
 
 BUGGY_CASES = [
@@ -423,6 +439,11 @@ BUGGY_CASES = [
         "note": "Rotation direction is inverted for both imbalance directions.",
     },
     {
+        "fn": "avl-lookup",
+        "buggy": "(define (avl-lookup key tree)\n  (avl-lookup-by > key tree))",
+        "note": "Default lookup must use `<` ordering to match the tree construction convention.",
+    },
+    {
         "fn": "avl-lookup-by",
         "buggy": "(define (avl-lookup-by cmp key tree)\n  (if (avl-empty? tree)\n      #f\n      (let ([k (avl-key tree)])\n        (cond\n          [(cmp key k) (avl-lookup-by cmp key (avl-right tree))]\n          [(cmp k key) (avl-lookup-by cmp key (avl-left tree))]\n          [else (avl-value tree)]))))",
         "note": "Comparator branches should follow BST direction: key<k goes left, k<key goes right.",
@@ -431,6 +452,16 @@ BUGGY_CASES = [
         "fn": "avl-lookup-by",
         "buggy": "(define (avl-lookup-by cmp key tree)\n  (if (avl-empty? tree)\n      #f\n      (let ([k (avl-key tree)])\n        (cond\n          [(cmp key k) (avl-lookup-by cmp key (avl-left tree))]\n          [(cmp k key) (avl-lookup-by cmp key (avl-right tree))]\n          [else #t]))))",
         "note": "Lookup must return the stored value, not a boolean marker.",
+    },
+    {
+        "fn": "avl-contains?",
+        "buggy": "(define (avl-contains? key tree)\n  (not (avl-empty? tree)))",
+        "note": "Containment must depend on the queried key, not just whether tree is non-empty.",
+    },
+    {
+        "fn": "avl-insert",
+        "buggy": "(define (avl-insert key value tree)\n  (avl-insert-by > key value tree))",
+        "note": "Default insert must delegate with `<`, not `>`.",
     },
     {
         "fn": "avl-insert-by",
@@ -453,6 +484,11 @@ BUGGY_CASES = [
         "note": "When left child is empty, the node should be replaced by its right subtree.",
     },
     {
+        "fn": "avl-delete",
+        "buggy": "(define (avl-delete key tree)\n  (avl-delete-by > key tree))",
+        "note": "Default delete must delegate with `<` comparator.",
+    },
+    {
         "fn": "avl-delete-by",
         "buggy": "(define (avl-delete-by cmp key tree)\n  (if (avl-empty? tree)\n      tree\n      (let ([k (avl-key tree)]\n            [v (avl-value tree)]\n            [left (avl-left tree)]\n            [right (avl-right tree)])\n        (cond\n          [(cmp key k)\n           (rebalance (make-avl-node k v (avl-delete-by cmp key left) right))]\n          [(cmp k key)\n           (rebalance (make-avl-node k v left (avl-delete-by cmp key right)))]\n          [else right]))))",
         "note": "Deleting a two-child node cannot discard the left subtree.",
@@ -471,6 +507,26 @@ BUGGY_CASES = [
         "fn": "avl-range-by",
         "buggy": "(define (avl-range-by cmp lo hi tree)\n  (if (avl-empty? tree)\n      '()\n      (let ([k (avl-key tree)]\n            [v (avl-value tree)])\n        (append\n         (if (cmp lo k)\n             (avl-range-by cmp lo hi (avl-left tree))\n             '())\n         (if (and (not (cmp k lo)) (not (cmp hi k)))\n             (list (cons k v))\n             '())\n         '()))))",
         "note": "The right-subtree traversal is required when k is below the high bound.",
+    },
+    {
+        "fn": "avl-range",
+        "buggy": "(define (avl-range lo hi tree)\n  (avl-range-by > lo hi tree))",
+        "note": "Default range query must delegate with `<` comparator.",
+    },
+    {
+        "fn": "avl-keys-between",
+        "buggy": "(define (avl-keys-between lo hi tree)\n  (map cdr (avl-range lo hi tree)))",
+        "note": "Keys-between must return keys, so it should map `car`, not `cdr`.",
+    },
+    {
+        "fn": "avl-less-than",
+        "buggy": "(define (avl-less-than bound tree)\n  (if (avl-empty? tree)\n      '()\n      (let ([k (avl-key tree)])\n        (if (<= k bound)\n            (append (avl-less-than bound (avl-left tree))\n                    (list (cons k (avl-value tree)))\n                    (avl-less-than bound (avl-right tree)))\n            (avl-less-than bound (avl-left tree))))))",
+        "note": "This operation is strict (`key < bound`), so keys equal to bound must be excluded.",
+    },
+    {
+        "fn": "avl-greater-than",
+        "buggy": "(define (avl-greater-than bound tree)\n  (if (avl-empty? tree)\n      '()\n      (let ([k (avl-key tree)])\n        (if (>= k bound)\n            (append (avl-greater-than bound (avl-left tree))\n                    (list (cons k (avl-value tree)))\n                    (avl-greater-than bound (avl-right tree)))\n            (avl-greater-than bound (avl-right tree))))))",
+        "note": "This operation is strict (`key > bound`), so keys equal to bound must be excluded.",
     },
 ]
 
@@ -995,13 +1051,79 @@ composition_cases = [
         "medium",
         ["integration"],
     ),
+
+    # expanded APIs
+    (
+        "avl-lookup",
+        "Lookup key 6 using default comparator wrapper.",
+        "(avl-lookup 6 (list->avl '((4 . \"d\") (6 . \"f\") (8 . \"h\"))))",
+        "(equal? (avl-lookup 6 (list->avl '((4 . \"d\") (6 . \"f\") (8 . \"h\")))) \"f\")",
+        "easy",
+        ["direct"],
+    ),
+    (
+        "avl-contains?",
+        "Check present and missing keys with avl-contains?.",
+        "(let ([t (list->avl '((2 . \"b\") (1 . \"a\") (3 . \"c\")))]) (and (avl-contains? 2 t) (not (avl-contains? 9 t))))",
+        "(equal? (let ([t (list->avl '((2 . \"b\") (1 . \"a\") (3 . \"c\")))]) (and (avl-contains? 2 t) (not (avl-contains? 9 t)))) #t)",
+        "easy",
+        ["property"],
+    ),
+    (
+        "avl-insert",
+        "Insert via default wrapper and return sorted keys.",
+        "(avl-keys (avl-insert 4 \"d\" (list->avl '((2 . \"b\") (1 . \"a\") (3 . \"c\")))))",
+        "(equal? (avl-keys (avl-insert 4 \"d\" (list->avl '((2 . \"b\") (1 . \"a\") (3 . \"c\"))))) '(1 2 3 4))",
+        "medium",
+        ["direct"],
+    ),
+    (
+        "avl-delete",
+        "Delete key 3 using default wrapper and return keys.",
+        "(avl-keys (avl-delete 3 (list->avl '((1 . \"a\") (2 . \"b\") (3 . \"c\") (4 . \"d\")))))",
+        "(equal? (avl-keys (avl-delete 3 (list->avl '((1 . \"a\") (2 . \"b\") (3 . \"c\") (4 . \"d\"))))) '(1 2 4))",
+        "medium",
+        ["direct"],
+    ),
+    (
+        "avl-range",
+        "Run default range wrapper for [2,4].",
+        "(avl-range 2 4 (list->avl '((1 . \"a\") (2 . \"b\") (3 . \"c\") (4 . \"d\") (5 . \"e\"))))",
+        "(equal? (avl-range 2 4 (list->avl '((1 . \"a\") (2 . \"b\") (3 . \"c\") (4 . \"d\") (5 . \"e\")))) '((2 . \"b\") (3 . \"c\") (4 . \"d\")))",
+        "medium",
+        ["direct"],
+    ),
+    (
+        "avl-keys-between",
+        "Return keys between 2 and 6 inclusive.",
+        "(avl-keys-between 2 6 (list->avl '((1 . \"a\") (2 . \"b\") (4 . \"d\") (6 . \"f\") (8 . \"h\"))))",
+        "(equal? (avl-keys-between 2 6 (list->avl '((1 . \"a\") (2 . \"b\") (4 . \"d\") (6 . \"f\") (8 . \"h\")))) '(2 4 6))",
+        "easy",
+        ["direct"],
+    ),
+    (
+        "avl-less-than",
+        "Return pairs with keys strictly less than 5.",
+        "(avl-less-than 5 (list->avl '((2 . \"b\") (5 . \"e\") (1 . \"a\") (7 . \"g\") (4 . \"d\"))))",
+        "(equal? (avl-less-than 5 (list->avl '((2 . \"b\") (5 . \"e\") (1 . \"a\") (7 . \"g\") (4 . \"d\")))) '((1 . \"a\") (2 . \"b\") (4 . \"d\")))",
+        "medium",
+        ["direct"],
+    ),
+    (
+        "avl-greater-than",
+        "Return pairs with keys strictly greater than 5.",
+        "(avl-greater-than 5 (list->avl '((2 . \"b\") (5 . \"e\") (1 . \"a\") (7 . \"g\") (6 . \"f\"))))",
+        "(equal? (avl-greater-than 5 (list->avl '((2 . \"b\") (5 . \"e\") (1 . \"a\") (7 . \"g\") (6 . \"f\")))) '((6 . \"f\") (7 . \"g\")))",
+        "medium",
+        ["direct"],
+    ),
 ]
 
 for fn, prompt, gt, verify, diff, tags in composition_cases:
     add_composition(fn, prompt, gt, verify, diff, tags)
 
-if sum(1 for s in samples if s["family"] == "composition") != 32:
-    raise ValueError("composition family must contain exactly 32 samples")
+if sum(1 for s in samples if s["family"] == "composition") < 32:
+    raise ValueError("composition family must contain at least 32 samples")
 
 # -----------------------------------------------------------------------------
 # Split train/eval

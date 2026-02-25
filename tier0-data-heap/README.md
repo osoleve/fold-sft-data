@@ -36,13 +36,13 @@ This folder contains a curated Tier-0 SFT dataset for:
 
 ## Dataset shape
 
-- Total: 96 samples
-- Split: 62 train / 34 eval (leakage-aware, source-function coverage enforced)
+- Total: 128 samples
+- Split: 102 train / 26 eval (leakage-aware, source-function coverage enforced)
 - Families:
   - `spec_to_code`: 32
-  - `translation`: 16
-  - `bugfix`: 16
-  - `composition`: 32
+  - `translation`: 32
+  - `bugfix`: 24
+  - `composition`: 40
 
 ## Generation
 

@@ -13,14 +13,14 @@ SFT dataset for `lattice/data/hamt.ss` and `lattice/data/test-hamt.ss`.
 
 ## Dataset shape
 
-- Total: 98
+- Total: 134
 - Families:
   - `spec_to_code`: 34
-  - `translation`: 16
-  - `bugfix`: 16
-  - `composition`: 32
-- Difficulty: 26 easy / 33 medium / 39 hard
-- Split: 62 train / 36 eval (leakage-aware, source-function coverage enforced)
+  - `translation`: 34
+  - `bugfix`: 25
+  - `composition`: 41
+- Difficulty: 33 easy / 51 medium / 50 hard
+- Split: 107 train / 27 eval (leakage-aware, source-function coverage enforced)
 - Source functions: 17
   - Core: `hamt-empty?`, `hamt-lookup`, `hamt-has-key?`, `hamt-assoc`, `hamt-dissoc`, `hamt-size`, `hamt-merge-with`, `alist->hamt`
   - Expanded coverage: `hamt-lookup-or`, `hamt-fold`, `hamt-keys`, `hamt-values`, `hamt-entries`, `hamt-map-values`, `hamt-filter`, `hamt-merge`, `dict->hamt`
