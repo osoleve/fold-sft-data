@@ -16,6 +16,7 @@ if str(DATA_ROOT) not in sys.path:
     sys.path.insert(0, str(DATA_ROOT))
 
 from sft_prompt_diversity import diversify_prompt
+from sft_split_utils import compute_leakage_aware_eval_ids
 ALL_PATH = OUT_DIR / "all.jsonl"
 TRAIN_PATH = OUT_DIR / "train.jsonl"
 EVAL_PATH = OUT_DIR / "eval.jsonl"
@@ -45,6 +46,10 @@ DEFS: Dict[str, str] = {
            (make-heap-node v2 (heap-left h2) (heap-merge h1 (heap-right h2)))))]))""",
     "heap-insert": """(define (heap-insert elem heap)
   (heap-merge (heap-node 1 elem heap-empty heap-empty) heap))""",
+    "heap-min": """(define (heap-min heap)
+  (if (heap-empty? heap)
+      (error 'heap-min "Cannot get min of empty heap")
+      (heap-value heap)))""",
     "heap-delete-min": """(define (heap-delete-min heap)
   (if (heap-empty? heap)
       (error 'heap-delete-min "Cannot delete from empty heap")
@@ -58,11 +63,42 @@ DEFS: Dict[str, str] = {
   (if (heap-empty? heap)
       0
       (+ 1 (heap-size (heap-left heap)) (heap-size (heap-right heap)))))""",
+    "heap-merge-by": """(define (heap-merge-by cmp h1 h2)
+  (cond
+    [(heap-empty? h1) h2]
+    [(heap-empty? h2) h1]
+    [else
+     (let ([v1 (heap-value h1)]
+           [v2 (heap-value h2)])
+       (if (cmp v1 v2)
+           (make-heap-node v1 (heap-left h1) (heap-merge-by cmp (heap-right h1) h2))
+           (make-heap-node v2 (heap-left h2) (heap-merge-by cmp h1 (heap-right h2)))))]))""",
+    "heap-insert-by": """(define (heap-insert-by cmp elem heap)
+  (heap-merge-by cmp (heap-node 1 elem heap-empty heap-empty) heap))""",
+    "heap-delete-top-by": """(define (heap-delete-top-by cmp heap)
+  (if (heap-empty? heap)
+      (error 'heap-delete-top-by "Cannot delete from empty heap")
+      (heap-merge-by cmp (heap-left heap) (heap-right heap))))""",
+    "heap-fold": """(define (heap-fold fn init heap)
+  (if (heap-empty? heap)
+      init
+      (let* ([acc (fn init (heap-value heap))]
+             [acc-right (heap-fold fn acc (heap-right heap))])
+        (heap-fold fn acc-right (heap-left heap)))))""",
+    "list->heap-by": """(define (list->heap-by cmp lst)
+  (fold-left (lambda (h x) (heap-insert-by cmp x h)) heap-empty lst))""",
     "heap->list": """(define (heap->list heap)
   (if (heap-empty? heap)
       '()
       (cons (heap-min heap)
             (heap->list (heap-delete-min heap)))))""",
+    "heapsort": """(define (heapsort lst)
+  (heap->list (list->heap lst)))""",
+    "heapsort-by": """(define (heapsort-by cmp lst)
+  (let loop ([h (list->heap-by cmp lst)] [acc '()])
+    (if (heap-empty? h)
+        (reverse acc)
+        (loop (heap-delete-top-by cmp h) (cons (heap-value h) acc)))))""",
 }
 
 SUPPORT_DEFS: Dict[str, str] = {
@@ -106,11 +142,18 @@ DEPENDS: Dict[str, List[str]] = {
     "heap-delete-min": ["heap-empty?", "heap-merge", "heap-left", "heap-right"],
     "heap-pop": ["heap-empty?", "heap-merge", "heap-left", "heap-right", "heap-value"],
     "heap-size": ["heap-empty?", "heap-left", "heap-right"],
+    "heap-merge-by": ["heap-empty?", "heap-value", "make-heap-node", "heap-left", "heap-right"],
+    "heap-insert-by": ["heap-merge-by", "heap-node", "heap-empty"],
+    "heap-delete-top-by": ["heap-empty?", "heap-merge-by", "heap-left", "heap-right"],
+    "heap-fold": ["heap-empty?", "heap-value", "heap-right", "heap-left"],
+    "list->heap-by": ["heap-insert-by", "heap-empty"],
     "heap->list": ["heap-empty?", "heap-min", "heap-delete-min"],
+    "heapsort": ["heap->list", "list->heap"],
+    "heapsort-by": ["list->heap-by", "heap-empty?", "heap-delete-top-by", "heap-value"],
     "list->heap": ["heap-insert", "heap-empty"],
 }
 
-FUNCTION_ORDER = [
+CORE_FUNCTIONS = [
     "heap-empty?",
     "make-heap-node",
     "heap-merge",
@@ -119,6 +162,25 @@ FUNCTION_ORDER = [
     "heap-pop",
     "heap-size",
     "heap->list",
+]
+
+FUNCTION_ORDER = [
+    "heap-empty?",
+    "make-heap-node",
+    "heap-merge",
+    "heap-insert",
+    "heap-min",
+    "heap-delete-min",
+    "heap-pop",
+    "heap-size",
+    "heap-merge-by",
+    "heap-insert-by",
+    "heap-delete-top-by",
+    "heap-fold",
+    "list->heap-by",
+    "heap->list",
+    "heapsort",
+    "heapsort-by",
 ]
 
 SUPPORT_ORDER = [
@@ -138,10 +200,18 @@ FUNCTION_SPECS = {
     "make-heap-node": "Construct a node while enforcing leftist rank ordering (larger rank subtree on the left).",
     "heap-merge": "Merge two min-heaps preserving heap ordering and leftist property.",
     "heap-insert": "Insert elem by merging heap with singleton node.",
+    "heap-min": "Return minimum element at root; raise an error for empty heap.",
     "heap-delete-min": "Remove minimum element from non-empty heap; raise an error on empty heap.",
     "heap-pop": "Return two values (new-heap, min-value); raise an error on empty heap.",
     "heap-size": "Return the number of nodes in the heap tree.",
+    "heap-merge-by": "Merge two heaps using comparator `(cmp a b)` deciding which root wins.",
+    "heap-insert-by": "Insert with custom comparator by merging a singleton heap.",
+    "heap-delete-top-by": "Delete comparator-defined top element; raise an error on empty heap.",
+    "heap-fold": "Fold all heap values with an accumulator function.",
+    "list->heap-by": "Build a heap from list using a custom comparator.",
     "heap->list": "Extract all heap elements in ascending order.",
+    "heapsort": "Sort a list in ascending order via heap extraction.",
+    "heapsort-by": "Sort a list using comparator ordering via custom heap operations.",
 }
 
 SKELETONS = {
@@ -157,6 +227,9 @@ SKELETONS = {
     "heap-insert": """(define (heap-insert elem heap)
   ;; TODO: insert by merging a singleton node with heap
   <TODO>)""",
+    "heap-min": """(define (heap-min heap)
+  ;; TODO: return root value and error on empty heap
+  <TODO>)""",
     "heap-delete-min": """(define (heap-delete-min heap)
   ;; TODO: remove root and merge children; error on empty
   <TODO>)""",
@@ -166,8 +239,29 @@ SKELETONS = {
     "heap-size": """(define (heap-size heap)
   ;; TODO: count nodes recursively
   <TODO>)""",
+    "heap-merge-by": """(define (heap-merge-by cmp h1 h2)
+  ;; TODO: merge with custom comparator
+  <TODO>)""",
+    "heap-insert-by": """(define (heap-insert-by cmp elem heap)
+  ;; TODO: insert using heap-merge-by
+  <TODO>)""",
+    "heap-delete-top-by": """(define (heap-delete-top-by cmp heap)
+  ;; TODO: delete comparator-defined top element
+  <TODO>)""",
+    "heap-fold": """(define (heap-fold fn init heap)
+  ;; TODO: fold all heap elements
+  <TODO>)""",
+    "list->heap-by": """(define (list->heap-by cmp lst)
+  ;; TODO: build heap with comparator-aware inserts
+  <TODO>)""",
     "heap->list": """(define (heap->list heap)
   ;; TODO: repeatedly extract min to produce sorted list
+  <TODO>)""",
+    "heapsort": """(define (heapsort lst)
+  ;; TODO: sort ascending using heap->list and list->heap
+  <TODO>)""",
+    "heapsort-by": """(define (heapsort-by cmp lst)
+  ;; TODO: sort using custom comparator heap pipeline
   <TODO>)""",
 }
 
@@ -176,14 +270,22 @@ VERIFY_BY_FUNCTION = {
     "make-heap-node": "(let* ([l (heap-node 2 4 (heap-node 1 6 heap-empty heap-empty) heap-empty)] [r (heap-node 1 5 heap-empty heap-empty)] [n (make-heap-node 3 l r)]) (and (heap-node? n) (>= (heap-rank (heap-left n)) (heap-rank (heap-right n)))))",
     "heap-merge": "(equal? (heap->list (heap-merge (list->heap '(5 1 9)) (list->heap '(4 2 8)))) '(1 2 4 5 8 9))",
     "heap-insert": "(let ([h (heap-insert 3 (list->heap '(7 2 9)))]) (and (= (heap-min h) 2) (= (heap-size h) 4) (equal? (heap->list h) '(2 3 7 9))))",
+    "heap-min": "(and (= (heap-min (list->heap '(5 1 4))) 1) (guard (ex [else #t]) (begin (heap-min heap-empty) #f)))",
     "heap-delete-min": "(and (equal? (heap->list (heap-delete-min (list->heap '(5 1 4 3)))) '(3 4 5)) (guard (ex [else #t]) (begin (heap-delete-min heap-empty) #f)))",
     "heap-pop": "(and (call-with-values (lambda () (heap-pop (list->heap '(5 1 4 3)))) (lambda (h x) (and (= x 1) (equal? (heap->list h) '(3 4 5))))) (guard (ex [else #t]) (begin (heap-pop heap-empty) #f)))",
     "heap-size": "(and (= (heap-size heap-empty) 0) (= (heap-size (list->heap '(9 2 7 1))) 4))",
+    "heap-merge-by": "(let loop ([h (heap-merge-by > (list->heap-by > '(3 7)) (list->heap-by > '(4 6)))] [acc '()]) (if (heap-empty? h) (equal? (reverse acc) '(7 6 4 3)) (loop (heap-delete-top-by > h) (cons (heap-value h) acc))))",
+    "heap-insert-by": "(let ([h (heap-insert-by > 9 (list->heap-by > '(3 7 4)))]) (and (= (heap-value h) 9) (= (heap-size h) 4)))",
+    "heap-delete-top-by": "(let* ([h (list->heap-by > '(4 1 7 3))] [h2 (heap-delete-top-by > h)]) (and (= (heap-value h) 7) (= (heap-value h2) 4) (= (heap-size h2) 3)))",
+    "heap-fold": "(let ([h (list->heap '(5 1 4 3))]) (and (= (heap-fold (lambda (acc x) (+ acc x)) 0 h) 13) (= (heap-fold (lambda (acc x) (+ acc 1)) 0 h) 4)))",
+    "list->heap-by": "(let loop ([h (list->heap-by > '(3 7 4 6))] [acc '()]) (if (heap-empty? h) (equal? (reverse acc) '(7 6 4 3)) (loop (heap-delete-top-by > h) (cons (heap-value h) acc))))",
     "heap->list": "(and (equal? (heap->list (list->heap '(5 2 8 1 9 3))) '(1 2 3 5 8 9)) (equal? (heap->list heap-empty) '()))",
+    "heapsort": "(equal? (heapsort '(5 2 8 1 2)) '(1 2 2 5 8))",
+    "heapsort-by": "(equal? (heapsort-by > '(5 2 8 1 2)) '(8 5 2 2 1))",
 }
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9!$%&*+./:<=>?@^_~-]+")
-TRANSLATION_FUNCTIONS = FUNCTION_ORDER
+TRANSLATION_FUNCTIONS = CORE_FUNCTIONS
 
 PYTHON_SNIPPETS = {
     "heap-empty?": "def heap_empty(heap):\n    return heap == 'heap-empty'",
@@ -295,10 +397,18 @@ DIFFICULTY = {
     "make-heap-node": "medium",
     "heap-merge": "hard",
     "heap-insert": "medium",
+    "heap-min": "easy",
     "heap-delete-min": "medium",
     "heap-pop": "hard",
     "heap-size": "easy",
+    "heap-merge-by": "hard",
+    "heap-insert-by": "medium",
+    "heap-delete-top-by": "hard",
+    "heap-fold": "medium",
+    "list->heap-by": "medium",
     "heap->list": "hard",
+    "heapsort": "easy",
+    "heapsort-by": "hard",
 }
 
 REQUIRED_KEYS = [
@@ -339,6 +449,7 @@ def add_sample(
         "source_module": SOURCE_MODULE,
         "source_test": SOURCE_TEST,
         "source_function": source_function,
+        "prompt_body": prompt.strip(),
         "prompt": diversify_prompt(prompt.strip(), family, source_function, family_counter[family], category, verify_expr),
         "ground_truth": ground_truth.strip(),
         "verify_expr": verify_expr.strip(),
@@ -395,7 +506,7 @@ def def_verify(fn: str) -> str:
 
 
 # -----------------------------------------------------------------------------
-# Family 1: spec_to_code (16)
+# Family 1: spec_to_code
 # -----------------------------------------------------------------------------
 for fn in FUNCTION_ORDER:
     add_sample(
@@ -435,7 +546,7 @@ Replace `<TODO>` and return only the completed definition for `{fn}`.""",
 
 
 # -----------------------------------------------------------------------------
-# Family 2: translation (16)
+# Family 2: translation
 # -----------------------------------------------------------------------------
 for fn in TRANSLATION_FUNCTIONS:
     add_sample(
@@ -474,7 +585,7 @@ Return only the corrected Fold definition.
 
 
 # -----------------------------------------------------------------------------
-# Family 3: bugfix (16)
+# Family 3: bugfix
 # -----------------------------------------------------------------------------
 for case in BUGGY_CASES:
     fn = str(case["fn"])
@@ -499,7 +610,7 @@ Return only the corrected definition.""",
 
 
 # -----------------------------------------------------------------------------
-# Family 4: composition/use (32)
+# Family 4: composition/use
 # -----------------------------------------------------------------------------
 
 
@@ -572,82 +683,17 @@ if sum(1 for s in samples if s["family"] == "composition") != 32:
 # -----------------------------------------------------------------------------
 # Split train/eval
 # -----------------------------------------------------------------------------
-if len(samples) != 80:
-    raise ValueError(f"expected 80 samples, got {len(samples)}")
-
-by_family: Dict[str, List[Dict[str, object]]] = defaultdict(list)
-for s in samples:
-    by_family[str(s["family"])].append(s)
-
-EVAL_QUOTA = {
-    "spec_to_code": 3,
-    "translation": 3,
-    "bugfix": 3,
-    "composition": 5,
-}
-
-
-def spread_indices(n: int, k: int) -> Set[int]:
-    if k <= 0:
-        return set()
-    if k >= n:
-        return set(range(n))
-    if k == 1:
-        return {n // 2}
-    idxs = {round(i * (n - 1) / (k - 1)) for i in range(k)}
-    cursor = 0
-    while len(idxs) < k:
-        if cursor not in idxs:
-            idxs.add(cursor)
-        cursor += 1
-    return idxs
-
-
-eval_ids: Set[str] = set()
-for fam, fam_samples in by_family.items():
-    picked = spread_indices(len(fam_samples), EVAL_QUOTA[fam])
-    for i, s in enumerate(fam_samples):
-        if i in picked:
-            eval_ids.add(str(s["id"]))
-
-id_to_sample: Dict[str, Dict[str, object]] = {str(s["id"]): s for s in samples}
-all_source_functions = sorted({str(s["source_function"]) for s in samples})
-
-
-def eval_source_fn_counts(ids: Set[str]) -> Counter:
-    return Counter(str(id_to_sample[sid]["source_function"]) for sid in ids)
-
-
-changed = True
-while changed:
-    changed = False
-    fn_counts = eval_source_fn_counts(eval_ids)
-    missing_fns = [fn for fn in all_source_functions if fn_counts[fn] == 0]
-    if not missing_fns:
-        break
-
-    for fn in missing_fns:
-        candidates = [s for s in samples if str(s["source_function"]) == fn and str(s["id"]) not in eval_ids]
-        swapped = False
-        for cand in candidates:
-            fam = str(cand["family"])
-            fam_eval = [id_to_sample[sid] for sid in eval_ids if str(id_to_sample[sid]["family"]) == fam]
-            removable = [r for r in fam_eval if fn_counts[str(r["source_function"])] > 1]
-            if not removable:
-                continue
-            removable.sort(key=lambda r: (fn_counts[str(r["source_function"])] , str(r["id"])), reverse=True)
-            out = removable[0]
-            eval_ids.remove(str(out["id"]))
-            eval_ids.add(str(cand["id"]))
-            changed = True
-            swapped = True
-            break
-        if swapped:
-            break
-
-missing_after = [fn for fn in all_source_functions if eval_source_fn_counts(eval_ids)[fn] == 0]
-if missing_after:
-    raise ValueError(f"eval split is missing source functions: {missing_after}")
+eval_ids = compute_leakage_aware_eval_ids(
+    samples,
+    eval_ratio=0.20,
+    eval_min_by_family={
+        "spec_to_code": max(3, len(FUNCTION_ORDER) // 6),
+        "translation": 3,
+        "bugfix": 3,
+        "composition": 5,
+    },
+    enforce_source_function_coverage=True,
+)
 
 train_rows: List[Dict[str, object]] = []
 eval_rows: List[Dict[str, object]] = []
@@ -660,8 +706,8 @@ for s in samples:
         row["split"] = "train"
         train_rows.append(row)
 
-if len(train_rows) != 66 or len(eval_rows) != 14:
-    raise ValueError(f"split mismatch: train={len(train_rows)}, eval={len(eval_rows)}")
+if not train_rows or not eval_rows:
+    raise ValueError("split generation failed: train/eval must both be non-empty")
 
 
 def write_jsonl(path: Path, rows: List[Dict[str, object]]) -> None:
@@ -673,6 +719,10 @@ def write_jsonl(path: Path, rows: List[Dict[str, object]]) -> None:
 write_jsonl(ALL_PATH, [dict(s, split=("eval" if s["id"] in eval_ids else "train")) for s in samples])
 write_jsonl(TRAIN_PATH, train_rows)
 write_jsonl(EVAL_PATH, eval_rows)
+
+by_family: Dict[str, List[Dict[str, object]]] = defaultdict(list)
+for s in samples:
+    by_family[str(s["family"])].append(s)
 
 summary = {
     "total": len(samples),

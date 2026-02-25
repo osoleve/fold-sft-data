@@ -16,6 +16,7 @@ if str(DATA_ROOT) not in sys.path:
     sys.path.insert(0, str(DATA_ROOT))
 
 from sft_prompt_diversity import diversify_prompt
+from sft_split_utils import compute_leakage_aware_eval_ids
 
 ALL_PATH = OUT_DIR / "all.jsonl"
 TRAIN_PATH = OUT_DIR / "train.jsonl"
@@ -47,6 +48,8 @@ DEFS: Dict[str, str] = {
                                        (rotate-right (avl-right tree))))
            (rotate-left tree))]
       [else tree])))""",
+    "avl-lookup": """(define (avl-lookup key tree)
+  (avl-lookup-by < key tree))""",
     "avl-lookup-by": """(define (avl-lookup-by cmp key tree)
   (if (avl-empty? tree)
       #f
@@ -55,6 +58,10 @@ DEFS: Dict[str, str] = {
           [(cmp key k) (avl-lookup-by cmp key (avl-left tree))]
           [(cmp k key) (avl-lookup-by cmp key (avl-right tree))]
           [else (avl-value tree)]))))""",
+    "avl-contains?": """(define (avl-contains? key tree)
+  (avl-contains-by? < key tree))""",
+    "avl-insert": """(define (avl-insert key value tree)
+  (avl-insert-by < key value tree))""",
     "avl-insert-by": """(define (avl-insert-by cmp key value tree)
   (if (avl-empty? tree)
       (make-avl-node key value avl-empty avl-empty)
@@ -72,11 +79,13 @@ DEFS: Dict[str, str] = {
     "avl-delete-min-by": """(define (avl-delete-min-by cmp tree)
   (if (avl-empty? tree)
       (error 'avl-delete-min "Cannot delete from empty tree")
-      (if (avl-empty? (avl-left tree))
-          (avl-right tree)
-          (rebalance (make-avl-node (avl-key tree) (avl-value tree)
+          (if (avl-empty? (avl-left tree))
+              (avl-right tree)
+              (rebalance (make-avl-node (avl-key tree) (avl-value tree)
                                     (avl-delete-min-by cmp (avl-left tree))
                                     (avl-right tree))))))""",
+    "avl-delete": """(define (avl-delete key tree)
+  (avl-delete-by < key tree))""",
     "avl-delete-by": """(define (avl-delete-by cmp key tree)
   (if (avl-empty? tree)
       tree
@@ -98,6 +107,8 @@ DEFS: Dict[str, str] = {
                 (rebalance (make-avl-node (car succ) (cdr succ)
                                           left
                                           (avl-delete-min-by cmp right))))])]))))""",
+    "avl-range": """(define (avl-range lo hi tree)
+  (avl-range-by < lo hi tree))""",
     "avl-range-by": """(define (avl-range-by cmp lo hi tree)
   (if (avl-empty? tree)
       '()
@@ -113,6 +124,26 @@ DEFS: Dict[str, str] = {
          (if (cmp k hi)
              (avl-range-by cmp lo hi (avl-right tree))
              '())))))""",
+    "avl-keys-between": """(define (avl-keys-between lo hi tree)
+  (map car (avl-range lo hi tree)))""",
+    "avl-less-than": """(define (avl-less-than bound tree)
+  (if (avl-empty? tree)
+      '()
+      (let ([k (avl-key tree)])
+        (if (< k bound)
+            (append (avl-less-than bound (avl-left tree))
+                    (list (cons k (avl-value tree)))
+                    (avl-less-than bound (avl-right tree)))
+            (avl-less-than bound (avl-left tree))))))""",
+    "avl-greater-than": """(define (avl-greater-than bound tree)
+  (if (avl-empty? tree)
+      '()
+      (let ([k (avl-key tree)])
+        (if (> k bound)
+            (append (avl-greater-than bound (avl-left tree))
+                    (list (cons k (avl-value tree)))
+                    (avl-greater-than bound (avl-right tree)))
+            (avl-greater-than bound (avl-right tree))))))""",
 }
 
 SUPPORT_DEFS: Dict[str, str] = {
@@ -213,7 +244,7 @@ SUPPORT_DEFS: Dict[str, str] = {
 
 ALL_DEFS: Dict[str, str] = {**SUPPORT_DEFS, **DEFS}
 
-FUNCTION_ORDER = [
+CORE_FUNCTIONS = [
     "avl-empty?",
     "make-avl-node",
     "rebalance",
@@ -224,6 +255,25 @@ FUNCTION_ORDER = [
     "avl-range-by",
 ]
 
+FUNCTION_ORDER = [
+    "avl-empty?",
+    "make-avl-node",
+    "rebalance",
+    "avl-lookup",
+    "avl-lookup-by",
+    "avl-contains?",
+    "avl-insert",
+    "avl-insert-by",
+    "avl-delete-min-by",
+    "avl-delete",
+    "avl-delete-by",
+    "avl-range",
+    "avl-range-by",
+    "avl-keys-between",
+    "avl-less-than",
+    "avl-greater-than",
+]
+
 SUPPORT_ORDER = list(SUPPORT_DEFS.keys())
 ALL_NAMES = FUNCTION_ORDER + SUPPORT_ORDER
 
@@ -231,11 +281,19 @@ FUNCTION_SPECS = {
     "avl-empty?": "Return #t iff tree is the avl-empty sentinel.",
     "make-avl-node": "Build an AVL node and recompute its cached height as 1 + max(height(left), height(right)).",
     "rebalance": "Restore AVL balance for a node by applying single/double rotations when balance factor is outside [-1, 1].",
+    "avl-lookup": "Lookup key with default `<` comparator; return value or #f.",
     "avl-lookup-by": "Lookup key with comparator cmp; return stored value or #f when key is absent.",
+    "avl-contains?": "Return whether key is present using default `<` comparator.",
+    "avl-insert": "Insert/update with default `<` comparator and preserve AVL invariants.",
     "avl-insert-by": "Insert/update (key, value) under cmp and rebalance on the way back up.",
     "avl-delete-min-by": "Delete the minimum element under cmp; raise an error on empty tree.",
+    "avl-delete": "Delete key using default `<` comparator while preserving AVL invariants.",
     "avl-delete-by": "Delete key under cmp, using in-order successor replacement for two-child nodes and preserving AVL invariants.",
+    "avl-range": "Return inclusive range pairs using default `<` comparator.",
     "avl-range-by": "Return in-order key/value pairs with lo <= key <= hi under comparator cmp.",
+    "avl-keys-between": "Return all keys in inclusive [lo, hi].",
+    "avl-less-than": "Return all key/value pairs with key < bound, in key order.",
+    "avl-greater-than": "Return all key/value pairs with key > bound, in key order.",
 }
 
 SKELETONS = {
@@ -248,8 +306,17 @@ SKELETONS = {
     "rebalance": """(define (rebalance tree)
   ;; TODO: rotate for LL/LR/RR/RL imbalance cases
   <TODO>)""",
+    "avl-lookup": """(define (avl-lookup key tree)
+  ;; TODO: delegate to comparator-based lookup with <
+  <TODO>)""",
     "avl-lookup-by": """(define (avl-lookup-by cmp key tree)
   ;; TODO: comparator-driven BST lookup; return #f when missing
+  <TODO>)""",
+    "avl-contains?": """(define (avl-contains? key tree)
+  ;; TODO: delegate to comparator-based contains? with <
+  <TODO>)""",
+    "avl-insert": """(define (avl-insert key value tree)
+  ;; TODO: delegate to comparator-based insert with <
   <TODO>)""",
     "avl-insert-by": """(define (avl-insert-by cmp key value tree)
   ;; TODO: insert/update and rebalance recursively
@@ -257,11 +324,26 @@ SKELETONS = {
     "avl-delete-min-by": """(define (avl-delete-min-by cmp tree)
   ;; TODO: delete smallest key; raise error on empty tree
   <TODO>)""",
+    "avl-delete": """(define (avl-delete key tree)
+  ;; TODO: delegate to comparator-based delete with <
+  <TODO>)""",
     "avl-delete-by": """(define (avl-delete-by cmp key tree)
   ;; TODO: delete key with successor replacement + rebalancing
   <TODO>)""",
+    "avl-range": """(define (avl-range lo hi tree)
+  ;; TODO: delegate to comparator-based range with <
+  <TODO>)""",
     "avl-range-by": """(define (avl-range-by cmp lo hi tree)
   ;; TODO: return sorted pairs in inclusive [lo, hi] range
+  <TODO>)""",
+    "avl-keys-between": """(define (avl-keys-between lo hi tree)
+  ;; TODO: map car over avl-range result
+  <TODO>)""",
+    "avl-less-than": """(define (avl-less-than bound tree)
+  ;; TODO: return in-order pairs where key < bound
+  <TODO>)""",
+    "avl-greater-than": """(define (avl-greater-than bound tree)
+  ;; TODO: return in-order pairs where key > bound
   <TODO>)""",
 }
 
@@ -269,15 +351,23 @@ VERIFY_BY_FUNCTION = {
     "avl-empty?": "(and (avl-empty? avl-empty) (not (avl-empty? (avl-node 1 5 \"x\" avl-empty avl-empty))))",
     "make-avl-node": "(let* ([left (avl-node 2 2 \"b\" (avl-node 1 1 \"a\" avl-empty avl-empty) avl-empty)] [right (avl-node 1 4 \"d\" avl-empty avl-empty)] [n (make-avl-node 3 \"c\" left right)]) (and (= (avl-height n) 3) (= (avl-key n) 3) (equal? (avl-value n) \"c\") (equal? (avl-left n) left) (equal? (avl-right n) right)))",
     "rebalance": "(let* ([n3 (make-avl-node 3 \"c\" avl-empty avl-empty)] [n2 (make-avl-node 2 \"b\" avl-empty n3)] [n1 (make-avl-node 1 \"a\" avl-empty n2)] [r (rebalance n1)]) (and (avl-valid? r) (avl-bst-valid? r) (equal? (avl-keys r) '(1 2 3))))",
+    "avl-lookup": "(let ([t (list->avl '((5 . \"e\") (3 . \"c\") (7 . \"g\")))]) (and (equal? (avl-lookup 7 t) \"g\") (equal? (avl-lookup 8 t) #f)))",
     "avl-lookup-by": "(let* ([pairs '((5 . \"five\") (2 . \"two\") (9 . \"nine\"))] [asc (fold-left (lambda (acc kv) (avl-insert-by < (car kv) (cdr kv) acc)) avl-empty pairs)] [desc (fold-left (lambda (acc kv) (avl-insert-by > (car kv) (cdr kv) acc)) avl-empty pairs)]) (and (equal? (avl-lookup-by < 9 asc) \"nine\") (equal? (avl-lookup-by < 8 asc) #f) (equal? (avl-lookup-by > 2 desc) \"two\")))",
+    "avl-contains?": "(let ([t (list->avl '((5 . \"e\") (3 . \"c\") (7 . \"g\")))]) (and (avl-contains? 3 t) (not (avl-contains? 42 t))))",
+    "avl-insert": "(let* ([t0 (list->avl '((2 . \"two\") (1 . \"one\") (3 . \"three\")))] [t1 (avl-insert 2 \"TWO\" t0)] [t2 (avl-insert 4 \"four\" t1)]) (and (= (avl-size t2) 4) (equal? (avl-lookup 2 t2) \"TWO\") (equal? (avl-keys t2) '(1 2 3 4))))",
     "avl-insert-by": "(let* ([t0 (fold-left (lambda (acc k) (avl-insert-by < k (* k 10) acc)) avl-empty '(5 3 7))] [t1 (avl-insert-by < 6 60 t0)] [t2 (avl-insert-by < 7 700 t1)]) (and (avl-valid? t2) (avl-bst-valid? t2) (= (avl-size t2) 4) (= (avl-lookup-by < 7 t2) 700) (equal? (avl-keys t2) '(3 5 6 7))))",
     "avl-delete-min-by": "(and (equal? (avl-keys (avl-delete-min-by < (list->avl '((4 . \"d\") (2 . \"b\") (6 . \"f\") (1 . \"a\"))))) '(2 4 6)) (guard (ex [else #t]) (begin (avl-delete-min-by < avl-empty) #f)))",
+    "avl-delete": "(let* ([t (list->avl '((5 . \"e\") (3 . \"c\") (7 . \"g\") (2 . \"b\")))] [d (avl-delete 3 t)] [d2 (avl-delete 99 d)]) (and (equal? (avl-keys d) '(2 5 7)) (equal? (avl-keys d2) '(2 5 7)) (avl-valid? d2) (avl-bst-valid? d2)))",
     "avl-delete-by": "(let* ([t (list->avl '((5 . \"e\") (3 . \"c\") (7 . \"g\") (2 . \"b\") (4 . \"d\") (6 . \"f\") (8 . \"h\")))] [d1 (avl-delete-by < 7 t)] [d2 (avl-delete-by < 5 d1)] [d3 (avl-delete-by < 42 d2)]) (and (avl-valid? d2) (avl-bst-valid? d2) (not (avl-contains-by? < 7 d1)) (not (avl-contains-by? < 5 d2)) (= (avl-size d2) 5) (= (avl-size d3) 5) (equal? (avl-keys d2) '(2 3 4 6 8))))",
+    "avl-range": "(let ([t (list->avl '((1 . \"a\") (3 . \"c\") (5 . \"e\") (7 . \"g\") (9 . \"i\")))]) (equal? (avl-range 3 7 t) '((3 . \"c\") (5 . \"e\") (7 . \"g\"))))",
     "avl-range-by": "(let* ([t (list->avl '((1 . \"a\") (3 . \"c\") (5 . \"e\") (7 . \"g\") (9 . \"i\")))] [r1 (avl-range-by < 3 7 t)] [r2 (avl-range-by < 8 10 t)] [r3 (avl-range-by < 20 30 t)]) (and (equal? r1 '((3 . \"c\") (5 . \"e\") (7 . \"g\"))) (equal? r2 '((9 . \"i\"))) (equal? r3 '())))",
+    "avl-keys-between": "(let ([t (list->avl '((1 . \"a\") (3 . \"c\") (5 . \"e\") (7 . \"g\") (9 . \"i\")))]) (equal? (avl-keys-between 3 7 t) '(3 5 7)))",
+    "avl-less-than": "(let ([t (list->avl '((1 . \"a\") (3 . \"c\") (5 . \"e\") (7 . \"g\")))]) (equal? (avl-less-than 5 t) '((1 . \"a\") (3 . \"c\"))))",
+    "avl-greater-than": "(let ([t (list->avl '((1 . \"a\") (3 . \"c\") (5 . \"e\") (7 . \"g\")))]) (equal? (avl-greater-than 3 t) '((5 . \"e\") (7 . \"g\"))))",
 }
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9!$%&*+./:<=>?@^_~-]+")
-TRANSLATION_FUNCTIONS = FUNCTION_ORDER
+TRANSLATION_FUNCTIONS = CORE_FUNCTIONS
 
 PYTHON_SNIPPETS = {
     "avl-empty?": "def avl_empty(tree):\n    return tree == 'avl-empty'",
@@ -388,11 +478,19 @@ DIFFICULTY = {
     "avl-empty?": "easy",
     "make-avl-node": "medium",
     "rebalance": "hard",
+    "avl-lookup": "easy",
     "avl-lookup-by": "medium",
+    "avl-contains?": "easy",
+    "avl-insert": "medium",
     "avl-insert-by": "hard",
     "avl-delete-min-by": "medium",
+    "avl-delete": "medium",
     "avl-delete-by": "hard",
+    "avl-range": "medium",
     "avl-range-by": "hard",
+    "avl-keys-between": "easy",
+    "avl-less-than": "medium",
+    "avl-greater-than": "medium",
 }
 
 REQUIRED_KEYS = [
@@ -433,6 +531,7 @@ def add_sample(
         "source_module": SOURCE_MODULE,
         "source_test": SOURCE_TEST,
         "source_function": source_function,
+        "prompt_body": prompt.strip(),
         "prompt": diversify_prompt(prompt.strip(), family, source_function, family_counter[family], category, verify_expr),
         "ground_truth": ground_truth.strip(),
         "verify_expr": verify_expr.strip(),
@@ -496,7 +595,7 @@ def def_verify(fn: str) -> str:
 
 
 # -----------------------------------------------------------------------------
-# Family 1: spec_to_code (16)
+# Family 1: spec_to_code
 # -----------------------------------------------------------------------------
 for fn in FUNCTION_ORDER:
     add_sample(
@@ -536,7 +635,7 @@ Replace `<TODO>` and return only the completed definition for `{fn}`.""",
 
 
 # -----------------------------------------------------------------------------
-# Family 2: translation (16)
+# Family 2: translation
 # -----------------------------------------------------------------------------
 for fn in TRANSLATION_FUNCTIONS:
     add_sample(
@@ -575,7 +674,7 @@ Return only the corrected Fold definition.
 
 
 # -----------------------------------------------------------------------------
-# Family 3: bugfix (16)
+# Family 3: bugfix
 # -----------------------------------------------------------------------------
 for case in BUGGY_CASES:
     fn = str(case["fn"])
@@ -600,7 +699,7 @@ Return only the corrected definition.""",
 
 
 # -----------------------------------------------------------------------------
-# Family 4: composition/use (32)
+# Family 4: composition/use
 # -----------------------------------------------------------------------------
 
 
@@ -907,82 +1006,17 @@ if sum(1 for s in samples if s["family"] == "composition") != 32:
 # -----------------------------------------------------------------------------
 # Split train/eval
 # -----------------------------------------------------------------------------
-if len(samples) != 80:
-    raise ValueError(f"expected 80 samples, got {len(samples)}")
-
-by_family: Dict[str, List[Dict[str, object]]] = defaultdict(list)
-for s in samples:
-    by_family[str(s["family"])].append(s)
-
-EVAL_QUOTA = {
-    "spec_to_code": 3,
-    "translation": 3,
-    "bugfix": 3,
-    "composition": 5,
-}
-
-
-def spread_indices(n: int, k: int) -> Set[int]:
-    if k <= 0:
-        return set()
-    if k >= n:
-        return set(range(n))
-    if k == 1:
-        return {n // 2}
-    idxs = {round(i * (n - 1) / (k - 1)) for i in range(k)}
-    cursor = 0
-    while len(idxs) < k:
-        if cursor not in idxs:
-            idxs.add(cursor)
-        cursor += 1
-    return idxs
-
-
-eval_ids: Set[str] = set()
-for fam, fam_samples in by_family.items():
-    picked = spread_indices(len(fam_samples), EVAL_QUOTA[fam])
-    for i, s in enumerate(fam_samples):
-        if i in picked:
-            eval_ids.add(str(s["id"]))
-
-id_to_sample: Dict[str, Dict[str, object]] = {str(s["id"]): s for s in samples}
-all_source_functions = sorted({str(s["source_function"]) for s in samples})
-
-
-def eval_source_fn_counts(ids: Set[str]) -> Counter:
-    return Counter(str(id_to_sample[sid]["source_function"]) for sid in ids)
-
-
-changed = True
-while changed:
-    changed = False
-    fn_counts = eval_source_fn_counts(eval_ids)
-    missing_fns = [fn for fn in all_source_functions if fn_counts[fn] == 0]
-    if not missing_fns:
-        break
-
-    for fn in missing_fns:
-        candidates = [s for s in samples if str(s["source_function"]) == fn and str(s["id"]) not in eval_ids]
-        swapped = False
-        for cand in candidates:
-            fam = str(cand["family"])
-            fam_eval = [id_to_sample[sid] for sid in eval_ids if str(id_to_sample[sid]["family"]) == fam]
-            removable = [r for r in fam_eval if fn_counts[str(r["source_function"])] > 1]
-            if not removable:
-                continue
-            removable.sort(key=lambda r: (fn_counts[str(r["source_function"])], str(r["id"])), reverse=True)
-            out = removable[0]
-            eval_ids.remove(str(out["id"]))
-            eval_ids.add(str(cand["id"]))
-            changed = True
-            swapped = True
-            break
-        if swapped:
-            break
-
-missing_after = [fn for fn in all_source_functions if eval_source_fn_counts(eval_ids)[fn] == 0]
-if missing_after:
-    raise ValueError(f"eval split is missing source functions: {missing_after}")
+eval_ids = compute_leakage_aware_eval_ids(
+    samples,
+    eval_ratio=0.20,
+    eval_min_by_family={
+        "spec_to_code": max(3, len(FUNCTION_ORDER) // 6),
+        "translation": 3,
+        "bugfix": 3,
+        "composition": 5,
+    },
+    enforce_source_function_coverage=True,
+)
 
 train_rows: List[Dict[str, object]] = []
 eval_rows: List[Dict[str, object]] = []
@@ -995,8 +1029,8 @@ for s in samples:
         row["split"] = "train"
         train_rows.append(row)
 
-if len(train_rows) != 66 or len(eval_rows) != 14:
-    raise ValueError(f"split mismatch: train={len(train_rows)}, eval={len(eval_rows)}")
+if not train_rows or not eval_rows:
+    raise ValueError("split generation failed: train/eval must both be non-empty")
 
 
 def write_jsonl(path: Path, rows: List[Dict[str, object]]) -> None:
@@ -1008,6 +1042,10 @@ def write_jsonl(path: Path, rows: List[Dict[str, object]]) -> None:
 write_jsonl(ALL_PATH, [dict(s, split=("eval" if s["id"] in eval_ids else "train")) for s in samples])
 write_jsonl(TRAIN_PATH, train_rows)
 write_jsonl(EVAL_PATH, eval_rows)
+
+by_family: Dict[str, List[Dict[str, object]]] = defaultdict(list)
+for s in samples:
+    by_family[str(s["family"])].append(s)
 
 summary = {
     "total": len(samples),

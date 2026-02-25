@@ -238,58 +238,69 @@ PYTHON_SNIPPETS = {
 
 CHEZ_SNIPPETS = {
     "entropy": """(define (entropy0 probs)
-  (- (fold-left + 0 (map plogp probs))))""",
+  (let loop ([xs probs] [acc 0])
+    (if (null? xs)
+        (- acc)
+        (loop (cdr xs) (+ acc (plogp (car xs)))))))""",
     "entropy-normalized": """(define (entropy-normalized0 weights)
-  (let* ([total (fold-left + 0 weights)]
-         [probs (if (= total 0)
-                    weights
-                    (map (lambda (w) (/ w total)) weights))])
-    (entropy probs)))""",
+  (let ([total (fold-left + 0 weights)])
+    (if (= total 0)
+        (entropy weights)
+        (entropy (map (lambda (w) (/ w total)) weights)))))""",
     "binary-entropy": """(define (binary-entropy0 p)
-  (cond
-    [(<= p 0) 0]
-    [(>= p 1) 0]
-    [else (- (+ (plogp p) (plogp (- 1 p))))]))""",
+  (if (or (<= p 0) (>= p 1))
+      0
+      (let ([q (- 1 p)])
+        (- (+ (plogp p) (plogp q))))))""",
     "mutual-information": """(define (mutual-information0 joint-probs marginal-x marginal-y)
-  (let ([hx (entropy marginal-x)]
-        [hy (entropy marginal-y)]
-        [hxy (joint-entropy joint-probs)])
-    (+ hx (- hy hxy))))""",
+  (let* ([h-x (entropy marginal-x)]
+         [h-y (entropy marginal-y)]
+         [flat (flatten joint-probs)]
+         [h-joint (entropy flat)])
+    (- (+ h-x h-y) h-joint)))""",
     "cross-entropy": """(define (cross-entropy0 p q)
   (if (null? p)
       0
-      (if (any2 (lambda (pi qi) (and (> pi 0) (<= qi 0))) p q)
-          +inf.0
-          (- (fold-left + 0
-                        (map (lambda (pi qi)
-                               (if (<= pi 0)
-                                   0
-                                   (* pi (entropy-log2 qi))))
-                             p q))))))""",
+      (let loop ([ps p] [qs q] [acc 0])
+        (cond
+          [(null? ps) (- acc)]
+          [(and (> (car ps) 0) (<= (car qs) 0)) +inf.0]
+          [(<= (car ps) 0) (loop (cdr ps) (cdr qs) acc)]
+          [else
+           (loop (cdr ps)
+                 (cdr qs)
+                 (+ acc (* (car ps) (entropy-log2 (car qs)))))]))))""",
     "kl-divergence": """(define (kl-divergence0 p q)
   (if (null? p)
       0
-      (fold-left + 0
-                 (map (lambda (pi qi)
-                        (cond
-                          [(<= pi 0) 0]
-                          [(<= qi 0) +inf.0]
-                          [else (* pi (log2 (/ pi qi)))]))
-                      p q))))""",
+      (let loop ([ps p] [qs q] [acc 0])
+        (cond
+          [(null? ps) acc]
+          [(<= (car ps) 0) (loop (cdr ps) (cdr qs) acc)]
+          [(<= (car qs) 0) +inf.0]
+          [else
+           (loop (cdr ps)
+                 (cdr qs)
+                 (+ acc (* (car ps) (log2 (/ (car ps) (car qs))))))]))))""",
     "jensen-shannon-divergence": """(define (jensen-shannon0 p q)
-  (let ([m (map (lambda (pi qi) (/ (+ pi qi) 2)) p q)])
-    (/ (+ (kl-divergence p m)
-          (kl-divergence q m))
-       2)))""",
+  (let* ([mid (map (lambda (pi qi) (/ (+ pi qi) 2)) p q)]
+         [dp (kl-divergence p mid)]
+         [dq (kl-divergence q mid)])
+    (/ (+ dp dq) 2)))""",
     "renyi-entropy": """(define (renyi-entropy0 alpha probs)
   (cond
     [(< alpha 0) +inf.0]
     [(= alpha 1) (entropy probs)]
-    [(= alpha 0) (log2 (length (filter (lambda (p) (> p 0)) probs)))]
+    [(= alpha 0)
+     (let loop ([xs probs] [n 0])
+       (if (null? xs)
+           (log2 n)
+           (loop (cdr xs) (if (> (car xs) 0) (+ n 1) n))))]
     [else
-      (let ([sum-p-alpha (fold-left + 0 (map (lambda (p) (expt p alpha)) probs))])
-        (* (/ 1 (- 1 alpha))
-           (log2 sum-p-alpha)))]))""",
+      (let loop ([xs probs] [sum 0])
+        (if (null? xs)
+            (* (/ 1 (- 1 alpha)) (log2 sum))
+            (loop (cdr xs) (+ sum (expt (car xs) alpha)))))]))""",
 }
 
 BUGGY_CASES = [
@@ -498,6 +509,7 @@ def add_sample(
         "source_module": SOURCE_MODULE,
         "source_test": SOURCE_TEST,
         "source_function": source_function,
+        "prompt_body": prompt.strip(),
         "prompt": diversify_prompt(prompt.strip(), family, source_function, family_counter[family], category, verify_expr),
         "ground_truth": ground_truth.strip(),
         "verify_expr": verify_expr.strip(),

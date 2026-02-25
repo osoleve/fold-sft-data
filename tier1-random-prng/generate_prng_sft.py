@@ -289,56 +289,59 @@ PYTHON_SNIPPETS = {
 }
 
 CHEZ_SNIPPETS = {
-    "u32": """(define (to-u32 n)
-  (bitwise-and n #xFFFFFFFF))""",
-    "u64": """(define (to-u64 n)
-  (bitwise-and n #xFFFFFFFFFFFFFFFF))""",
-    "rotl32": """(define (rotate-left32 x k)
-  (let ([x (u32 x)]
-        [k (modulo k 32)])
-    (u32 (bitwise-ior (ash x k)
-                      (ash x (- k 32))))))""",
+    "u32": """(define (as-u32 n)
+  (let ([mask (- (expt 2 32) 1)])
+    (bitwise-and n mask)))""",
+    "u64": """(define (as-u64 n)
+  (let ([mask (- (expt 2 64) 1)])
+    (bitwise-and n mask)))""",
+    "rotl32": """(define (rol32 x k)
+  (let* ([w (u32 x)]
+         [s (modulo k 32)]
+         [hi (ash w s)]
+         [lo (ash w (- s 32))])
+    (u32 (bitwise-ior hi lo))))""",
     "splitmix-next": """(define (splitmix-step sm)
-  (let* ([s (u64 (+ (splitmix-state sm) #x9e3779b97f4a7c15))]
-         [z (u64 (* (bitwise-xor s (ash s -30)) #xbf58476d1ce4e5b9))]
-         [z (u64 (* (bitwise-xor z (ash z -27)) #x94d049bb133111eb))]
-         [z (bitwise-xor z (ash z -31))])
-    (cons z (make-splitmix s))))""",
+  (let* ([next-s (u64 (+ (splitmix-state sm) #x9e3779b97f4a7c15))]
+         [mix1 (u64 (* (bitwise-xor next-s (ash next-s -30)) #xbf58476d1ce4e5b9))]
+         [mix2 (u64 (* (bitwise-xor mix1 (ash mix1 -27)) #x94d049bb133111eb))]
+         [out (bitwise-xor mix2 (ash mix2 -31))])
+    (cons out (make-splitmix next-s))))""",
     "make-pcg": """(define (pcg-init seed stream)
   (let* ([inc (u64 (bitwise-ior (ash stream 1) 1))]
-         [state0 0]
-         [state1 (u64 (+ (* state0 #x5851f42d4c957f2d) inc))]
-         [state2 (u64 (+ state1 (u64 seed)))]
-         [state3 (u64 (+ (* state2 #x5851f42d4c957f2d) inc))])
-    (list 'pcg state3 inc)))""",
+         [advance (lambda (st) (u64 (+ (* st #x5851f42d4c957f2d) inc)))]
+         [warm1 (advance 0)]
+         [seeded (u64 (+ warm1 (u64 seed)))]
+         [warm2 (advance seeded)])
+    (list 'pcg warm2 inc)))""",
     "pcg-next": """(define (pcg-step p)
   (let* ([state (pcg-state p)]
          [inc (pcg-inc p)]
-         [xorshifted (u32 (ash (bitwise-xor (ash state -18) state) -27))]
+         [mix (bitwise-xor state (ash state -18))]
+         [xorshifted (u32 (ash mix -27))]
          [rot (ash state -59)]
          [output (rotr32 xorshifted rot)]
          [new-state (u64 (+ (* state #x5851f42d4c957f2d) inc))])
     (cons output (list 'pcg new-state inc))))""",
     "make-xorshift128": """(define (xorshift-init seed)
-  (let* ([sm0 (make-splitmix seed)]
-         [r1 (splitmix-next sm0)]
+  (let* ([nz (lambda (x) (if (= x 0) 1 x))]
+         [r1 (splitmix-next (make-splitmix seed))]
          [s0 (car r1)]
-         [sm1 (cdr r1)]
-         [r2 (splitmix-next sm1)]
+         [r2 (splitmix-next (cdr r1))]
          [s1 (car r2)])
     (list 'xorshift128
-          (if (= s0 0) 1 s0)
-          (if (= s1 0) 1 s1))))""",
+          (nz s0)
+          (nz s1))))""",
     "xorshift128-next": """(define (xorshift-step xs)
-  (let* ([s0 (xorshift128-s0 xs)]
-         [s1 (xorshift128-s1 xs)]
-         [result (u64 (+ s0 s1))]
-         [s1-new (bitwise-xor s0 s1)]
-         [new-s0 (u64 (bitwise-xor
-                       (bitwise-xor (rotl64 s0 24) s1-new)
-                       (ash s1-new 16)))]
-         [new-s1 (rotl64 s1-new 37)])
-    (cons result (list 'xorshift128 new-s0 new-s1))))""",
+  (let* ([a (xorshift128-s0 xs)]
+         [b (xorshift128-s1 xs)]
+         [sum (u64 (+ a b))]
+         [t (bitwise-xor a b)]
+         [a* (u64 (bitwise-xor
+                   (bitwise-xor (rotl64 a 24) t)
+                   (ash t 16)))]
+         [b* (rotl64 t 37)])
+    (cons sum (list 'xorshift128 a* b*))))""",
 }
 
 BUGGY_CASES = [
@@ -545,6 +548,7 @@ def add_sample(
         "source_module": SOURCE_MODULE,
         "source_test": SOURCE_TEST,
         "source_function": source_function,
+        "prompt_body": prompt.strip(),
         "prompt": diversify_prompt(
             prompt.strip(),
             family,

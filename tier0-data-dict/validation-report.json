@@ -10,8 +10,8 @@
     },
     "difficulty": {
       "easy": 67,
-      "hard": 4,
-      "medium": 47
+      "hard": 34,
+      "medium": 17
     },
     "splits": {
       "eval": 20,

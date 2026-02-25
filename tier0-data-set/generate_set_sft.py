@@ -340,6 +340,28 @@ REQUIRED_KEYS = [
 samples: List[Dict[str, object]] = []
 family_counter: Dict[str, int] = defaultdict(int)
 
+EASY_FUNCTIONS = {
+    "set-empty?",
+    "set-member?",
+    "set-size",
+    "set->list",
+}
+
+HARD_FUNCTIONS = {
+    "set-union",
+    "set-intersection",
+    "set-difference",
+    "set-subset?",
+}
+
+
+def task_difficulty(fn: str) -> str:
+    if fn in HARD_FUNCTIONS:
+        return "hard"
+    if fn in EASY_FUNCTIONS:
+        return "easy"
+    return "medium"
+
 
 def add_sample(
     family: str,
@@ -361,6 +383,7 @@ def add_sample(
         "source_module": SOURCE_MODULE,
         "source_test": SOURCE_TEST,
         "source_function": source_function,
+        "prompt_body": prompt.strip(),
         "prompt": diversify_prompt(prompt.strip(), family, source_function, family_counter[family], category, verify_expr),
         "ground_truth": ground_truth.strip(),
         "verify_expr": verify_expr.strip(),
@@ -413,7 +436,7 @@ def def_verify(fn: str) -> str:
 # Family 1: spec_to_code (22)
 # -----------------------------------------------------------------------------
 for fn in FUNCTION_ORDER:
-    diff = "easy" if fn in {"set-empty?", "set-member?", "set-size", "set->list", "list->set"} else "medium"
+    diff = task_difficulty(fn)
 
     add_sample(
         family="spec_to_code",
@@ -455,7 +478,7 @@ Replace `<TODO>` and return only the completed definition for `{fn}`.""",
 # Family 2: translation (22)
 # -----------------------------------------------------------------------------
 for fn in TRANSLATION_FUNCTIONS:
-    diff = "easy" if fn in {"set-empty?", "set-member?", "set-size", "set->list", "list->set"} else "medium"
+    diff = task_difficulty(fn)
 
     add_sample(
         family="translation",
@@ -497,7 +520,7 @@ Return only the corrected Fold definition.
 # -----------------------------------------------------------------------------
 for case in BUGGY_CASES:
     fn = case["fn"]
-    diff = "easy" if fn in {"set-empty?", "set-member?", "set-size", "set->list", "list->set"} else "medium"
+    diff = task_difficulty(fn)
 
     add_sample(
         family="bugfix",

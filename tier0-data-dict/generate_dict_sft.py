@@ -398,6 +398,34 @@ REQUIRED_KEYS = [
 samples: List[Dict[str, object]] = []
 family_counter: Dict[str, int] = defaultdict(int)
 
+EASY_FUNCTIONS = {
+    "dict-empty?",
+    "dict-lookup",
+    "dict-has-key?",
+    "dict-size",
+    "dict-keys",
+    "dict-values",
+    "dict-entries",
+    "dict->alist",
+    "alist->dict",
+}
+
+HARD_FUNCTIONS = {
+    "dict-assoc",
+    "dict-dissoc",
+    "dict-merge",
+    "dict-map-values",
+    "dict-filter",
+}
+
+
+def task_difficulty(fn: str) -> str:
+    if fn in HARD_FUNCTIONS:
+        return "hard"
+    if fn in EASY_FUNCTIONS:
+        return "easy"
+    return "medium"
+
 
 def add_sample(
     family: str,
@@ -419,6 +447,7 @@ def add_sample(
         "source_module": SOURCE_MODULE,
         "source_test": SOURCE_TEST,
         "source_function": source_function,
+        "prompt_body": prompt.strip(),
         "prompt": diversify_prompt(prompt.strip(), family, source_function, family_counter[family], category, verify_expr),
         "ground_truth": ground_truth.strip(),
         "verify_expr": verify_expr.strip(),
@@ -471,7 +500,7 @@ def def_verify(fn: str) -> str:
 # Family 1: spec_to_code (28)
 # -----------------------------------------------------------------------------
 for fn in FUNCTION_ORDER:
-    diff = "easy" if fn in {"dict-empty?", "dict-lookup", "dict-has-key?", "dict-size", "dict-keys", "dict-values", "dict-entries", "dict->alist", "alist->dict"} else "medium"
+    diff = task_difficulty(fn)
 
     add_sample(
         family="spec_to_code",
@@ -513,7 +542,7 @@ Replace `<TODO>` and return only the completed definition for `{fn}`.""",
 # Family 2: translation (28)
 # -----------------------------------------------------------------------------
 for fn in TRANSLATION_FUNCTIONS:
-    diff = "easy" if fn in {"dict-empty?", "dict-lookup", "dict-has-key?", "dict-size", "dict-keys", "dict-values", "dict-entries", "dict->alist", "alist->dict"} else "medium"
+    diff = task_difficulty(fn)
 
     add_sample(
         family="translation",
@@ -555,7 +584,7 @@ Return only the corrected Fold definition.
 # -----------------------------------------------------------------------------
 for case in BUGGY_CASES:
     fn = case["fn"]
-    diff = "easy" if fn in {"dict-empty?", "dict-lookup", "dict-has-key?", "dict-size", "dict-keys", "dict-values", "dict-entries", "dict->alist", "alist->dict"} else "medium"
+    diff = task_difficulty(fn)
 
     add_sample(
         family="bugfix",

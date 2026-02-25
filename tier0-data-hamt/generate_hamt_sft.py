@@ -16,6 +16,7 @@ if str(DATA_ROOT) not in sys.path:
     sys.path.insert(0, str(DATA_ROOT))
 
 from sft_prompt_diversity import diversify_prompt
+from sft_split_utils import compute_leakage_aware_eval_ids
 ALL_PATH = OUT_DIR / "all.jsonl"
 TRAIN_PATH = OUT_DIR / "train.jsonl"
 EVAL_PATH = OUT_DIR / "eval.jsonl"
@@ -282,6 +283,37 @@ DEFS: Dict[str, str] = {
     [else init]))""",
     "hamt-size": """(define (hamt-size hamt)
   (hamt-fold (lambda (acc k v) (+ acc 1)) 0 hamt))""",
+    "hamt-keys": """(define (hamt-keys hamt)
+  (hamt-fold (lambda (acc k v) (cons k acc)) '() hamt))""",
+    "hamt-values": """(define (hamt-values hamt)
+  (hamt-fold (lambda (acc k v) (cons v acc)) '() hamt))""",
+    "hamt-entries": """(define (hamt-entries hamt)
+  (hamt-fold (lambda (acc k v) (cons (cons k v) acc)) '() hamt))""",
+    "hamt-map-values": """(define (hamt-map-values f hamt)
+  (cond
+    [(hamt-empty? hamt) hamt-empty]
+    [(hamt-leaf? hamt)
+     (make-hamt-leaf (hamt-leaf-hash hamt)
+                     (hamt-leaf-key hamt)
+                     (f (hamt-leaf-value hamt)))]
+    [(hamt-collision? hamt)
+     (make-hamt-collision
+       (hamt-collision-hash hamt)
+       (map (lambda (pair) (cons (car pair) (f (cdr pair))))
+            (hamt-collision-entries hamt)))]
+    [(hamt-node? hamt)
+     (make-hamt-node
+       (hamt-node-bitmap hamt)
+       (map (lambda (child) (hamt-map-values f child))
+            (hamt-node-children hamt)))]
+    [else hamt]))""",
+    "hamt-filter": """(define (hamt-filter pred hamt)
+  (hamt-fold (lambda (acc k v)
+               (if (pred k v) (hamt-assoc k v acc) acc))
+             hamt-empty hamt))""",
+    "hamt-merge": """(define (hamt-merge h1 h2)
+  (hamt-fold (lambda (acc k v) (hamt-assoc k v acc))
+             h1 h2))""",
     "hamt-merge-with": """(define (hamt-merge-with f h1 h2)
   (hamt-fold (lambda (acc k v)
                (if (hamt-has-key? k acc)
@@ -413,12 +445,33 @@ DEPENDS: Dict[str, List[str]] = {
         "hamt-node-children",
     ],
     "hamt-size": ["hamt-fold"],
+    "hamt-keys": ["hamt-fold"],
+    "hamt-values": ["hamt-fold"],
+    "hamt-entries": ["hamt-fold"],
+    "hamt-map-values": [
+        "hamt-empty?",
+        "hamt-leaf?",
+        "hamt-collision?",
+        "hamt-node?",
+        "make-hamt-leaf",
+        "hamt-leaf-hash",
+        "hamt-leaf-key",
+        "hamt-leaf-value",
+        "make-hamt-collision",
+        "hamt-collision-hash",
+        "hamt-collision-entries",
+        "make-hamt-node",
+        "hamt-node-bitmap",
+        "hamt-node-children",
+    ],
+    "hamt-filter": ["hamt-fold", "hamt-assoc"],
+    "hamt-merge": ["hamt-fold", "hamt-assoc"],
     "hamt-merge-with": ["hamt-fold", "hamt-has-key?", "hamt-assoc", "hamt-lookup"],
     "dict->hamt": ["hamt-assoc"],
     "alist->hamt": ["dict->hamt"],
 }
 
-FUNCTION_ORDER = [
+CORE_FUNCTIONS = [
     "hamt-empty?",
     "hamt-lookup",
     "hamt-has-key?",
@@ -429,14 +482,43 @@ FUNCTION_ORDER = [
     "alist->hamt",
 ]
 
+FUNCTION_ORDER = [
+    "hamt-empty?",
+    "hamt-lookup",
+    "hamt-lookup-or",
+    "hamt-has-key?",
+    "hamt-assoc",
+    "hamt-dissoc",
+    "hamt-fold",
+    "hamt-size",
+    "hamt-keys",
+    "hamt-values",
+    "hamt-entries",
+    "hamt-map-values",
+    "hamt-filter",
+    "hamt-merge",
+    "hamt-merge-with",
+    "dict->hamt",
+    "alist->hamt",
+]
+
 FUNCTION_SPECS = {
     "hamt-empty?": "Return #t only for the singleton empty HAMT marker `'hamt-empty`.",
     "hamt-lookup": "Lookup key in HAMT and return its value, or #f when absent.",
+    "hamt-lookup-or": "Lookup key and return default when key is absent.",
     "hamt-has-key?": "Return key existence even when value is #f (must not use lookup truthiness).",
     "hamt-assoc": "Insert/update key -> value in persistent HAMT and return new structure.",
     "hamt-dissoc": "Remove key from HAMT and return updated HAMT without mutating input.",
+    "hamt-fold": "Fold all key/value pairs with accumulator function `(f acc key value)`.",
     "hamt-size": "Count the number of key-value pairs in HAMT.",
+    "hamt-keys": "Collect all keys contained in the HAMT.",
+    "hamt-values": "Collect all values contained in the HAMT.",
+    "hamt-entries": "Collect key/value pairs as an association list.",
+    "hamt-map-values": "Map a value transform over HAMT values while preserving keys/shape.",
+    "hamt-filter": "Keep only entries where predicate `(pred key value)` is true.",
+    "hamt-merge": "Merge two HAMTs with right-biased conflict resolution (h2 wins).",
     "hamt-merge-with": "Merge two HAMTs and resolve conflicts with function `(f old new)`.",
+    "dict->hamt": "Convert an association-list dictionary into a HAMT.",
     "alist->hamt": "Convert association list to HAMT; duplicate keys keep the last value.",
 }
 
@@ -447,6 +529,9 @@ SKELETONS = {
     "hamt-lookup": """(define (hamt-lookup key hamt)
   ;; TODO: hash key and delegate to recursive lookup
   <TODO>)""",
+    "hamt-lookup-or": """(define (hamt-lookup-or key hamt default)
+  ;; TODO: hash key and delegate to recursive lookup-or
+  <TODO>)""",
     "hamt-has-key?": """(define (hamt-has-key? key hamt)
   ;; TODO: distinguish missing key from key mapped to #f
   <TODO>)""",
@@ -456,11 +541,35 @@ SKELETONS = {
     "hamt-dissoc": """(define (hamt-dissoc key hamt)
   ;; TODO: hash key and remove persistently
   <TODO>)""",
+    "hamt-fold": """(define (hamt-fold f init hamt)
+  ;; TODO: fold over leaves/collisions/nodes
+  <TODO>)""",
     "hamt-size": """(define (hamt-size hamt)
   ;; TODO: fold through HAMT and count entries
   <TODO>)""",
+    "hamt-keys": """(define (hamt-keys hamt)
+  ;; TODO: collect all keys with hamt-fold
+  <TODO>)""",
+    "hamt-values": """(define (hamt-values hamt)
+  ;; TODO: collect all values with hamt-fold
+  <TODO>)""",
+    "hamt-entries": """(define (hamt-entries hamt)
+  ;; TODO: collect key/value pairs with hamt-fold
+  <TODO>)""",
+    "hamt-map-values": """(define (hamt-map-values f hamt)
+  ;; TODO: recursively map value transformer across HAMT nodes
+  <TODO>)""",
+    "hamt-filter": """(define (hamt-filter pred hamt)
+  ;; TODO: filter entries by predicate on key and value
+  <TODO>)""",
+    "hamt-merge": """(define (hamt-merge h1 h2)
+  ;; TODO: right-biased merge using hamt-fold and hamt-assoc
+  <TODO>)""",
     "hamt-merge-with": """(define (hamt-merge-with f h1 h2)
   ;; TODO: merge h2 into h1 using conflict resolver (old,new)
+  <TODO>)""",
+    "dict->hamt": """(define (dict->hamt dict)
+  ;; TODO: fold association pairs into a HAMT
   <TODO>)""",
     "alist->hamt": """(define (alist->hamt alist)
   ;; TODO: build HAMT from association list
@@ -470,16 +579,25 @@ SKELETONS = {
 VERIFY_BY_FUNCTION = {
     "hamt-empty?": "(and (hamt-empty? hamt-empty) (not (hamt-empty? (hamt-assoc 'a 1 hamt-empty))) (hamt-empty? (hamt-dissoc 'a (hamt-assoc 'a 1 hamt-empty))))",
     "hamt-lookup": "(let ([h (hamt-assoc 'a 1 (hamt-assoc 'b 2 hamt-empty))]) (and (= (hamt-lookup 'a h) 1) (= (hamt-lookup 'b h) 2) (equal? (hamt-lookup 'missing h) #f)))",
+    "hamt-lookup-or": "(let ([h (hamt-assoc 'k #f (hamt-assoc 'a 1 hamt-empty))]) (and (equal? (hamt-lookup-or 'a h 'missing) 1) (equal? (hamt-lookup-or 'k h 'missing) #f) (equal? (hamt-lookup-or 'z h 'missing) 'missing)))",
     "hamt-has-key?": "(let ([h (hamt-assoc 'k #f hamt-empty)]) (and (hamt-has-key? 'k h) (not (hamt-has-key? 'x h))))",
     "hamt-assoc": "(let* ([h0 hamt-empty] [h1 (hamt-assoc 'a 1 h0)] [h2 (hamt-assoc 'b 2 h1)] [h3 (hamt-assoc 'a 9 h2)]) (and (= (hamt-size h2) 2) (= (hamt-size h3) 2) (= (hamt-lookup 'a h3) 9) (= (hamt-lookup 'b h3) 2)))",
     "hamt-dissoc": "(let* ([h (alist->hamt '((a . 1) (b . 2) (c . 3)))] [h2 (hamt-dissoc 'b h)] [h3 (hamt-dissoc 'z h2)]) (and (= (hamt-size h2) 2) (not (hamt-has-key? 'b h2)) (= (hamt-size h3) 2) (= (hamt-lookup 'a h3) 1)))",
+    "hamt-fold": "(let* ([h (alist->hamt '((a . 1) (b . 2) (c . 3)))] [sum (hamt-fold (lambda (acc k v) (+ acc v)) 0 h)] [count (hamt-fold (lambda (acc k v) (+ acc 1)) 0 h)]) (and (= sum 6) (= count 3)))",
     "hamt-size": "(let* ([h1 (alist->hamt '((a . 1) (b . 2) (c . 3)))] [h2 (hamt-assoc 'b 9 h1)]) (and (= (hamt-size hamt-empty) 0) (= (hamt-size h1) 3) (= (hamt-size h2) 3)))",
+    "hamt-keys": "(let* ([h (alist->hamt '((a . 1) (b . 2) (c . 3)))] [ks (hamt-keys h)]) (and (= (length ks) 3) (not (not (member 'a ks))) (not (not (member 'b ks))) (not (not (member 'c ks)))))",
+    "hamt-values": "(let* ([h (alist->hamt '((a . 1) (b . 2) (c . 3)))] [vs (hamt-values h)]) (and (= (length vs) 3) (not (not (member 1 vs))) (not (not (member 2 vs))) (not (not (member 3 vs)))))",
+    "hamt-entries": "(let* ([h (alist->hamt '((a . 1) (b . 2)))] [es (hamt-entries h)] [h2 (alist->hamt es)]) (and (= (hamt-size h2) 2) (= (hamt-lookup 'a h2) 1) (= (hamt-lookup 'b h2) 2)))",
+    "hamt-map-values": "(let* ([h (alist->hamt '((a . 1) (b . 2)))] [m (hamt-map-values (lambda (v) (+ v 10)) h)]) (and (= (hamt-lookup 'a m) 11) (= (hamt-lookup 'b m) 12) (= (hamt-size m) 2)))",
+    "hamt-filter": "(let* ([h (alist->hamt '((a . 1) (b . 2) (c . 3)))] [f (hamt-filter (lambda (k v) (> v 1)) h)]) (and (= (hamt-size f) 2) (not (hamt-has-key? 'a f)) (= (hamt-lookup 'b f) 2) (= (hamt-lookup 'c f) 3)))",
+    "hamt-merge": "(let* ([h1 (alist->hamt '((a . 1) (b . 2)))] [h2 (alist->hamt '((b . 9) (c . 3)))] [m (hamt-merge h1 h2)]) (and (= (hamt-size m) 3) (= (hamt-lookup 'a m) 1) (= (hamt-lookup 'b m) 9) (= (hamt-lookup 'c m) 3)))",
     "hamt-merge-with": "(let* ([h1 (alist->hamt '((a . 1) (b . #f)))] [h2 (alist->hamt '((b . 10) (c . 3)))] [m (hamt-merge-with (lambda (old new) (if (equal? old #f) 'had-false (+ old new))) h1 h2)]) (and (= (hamt-lookup 'a m) 1) (equal? (hamt-lookup 'b m) 'had-false) (= (hamt-lookup 'c m) 3) (= (hamt-size m) 3)))",
+    "dict->hamt": "(let ([h (dict->hamt '((x . 1) (y . 2) (x . 7)))]) (and (= (hamt-size h) 2) (= (hamt-lookup 'x h) 7) (= (hamt-lookup 'y h) 2)))",
     "alist->hamt": "(let ([h (alist->hamt '((x . 1) (y . 2) (x . 7)))]) (and (= (hamt-size h) 2) (= (hamt-lookup 'x h) 7) (= (hamt-lookup 'y h) 2)))",
 }
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9!$%&*+./:<=>?@^_~-]+")
-TRANSLATION_FUNCTIONS = FUNCTION_ORDER
+TRANSLATION_FUNCTIONS = CORE_FUNCTIONS
 
 PYTHON_SNIPPETS = {
     "hamt-empty?": "def hamt_empty_p(x):\n    return x == 'hamt-empty'",
@@ -589,11 +707,20 @@ BUGGY_CASES = [
 DIFFICULTY = {
     "hamt-empty?": "easy",
     "hamt-lookup": "medium",
+    "hamt-lookup-or": "medium",
     "hamt-has-key?": "hard",
     "hamt-assoc": "hard",
     "hamt-dissoc": "hard",
+    "hamt-fold": "hard",
     "hamt-size": "easy",
+    "hamt-keys": "easy",
+    "hamt-values": "easy",
+    "hamt-entries": "medium",
+    "hamt-map-values": "hard",
+    "hamt-filter": "hard",
+    "hamt-merge": "medium",
     "hamt-merge-with": "hard",
+    "dict->hamt": "medium",
     "alist->hamt": "medium",
 }
 
@@ -635,6 +762,7 @@ def add_sample(
         "source_module": SOURCE_MODULE,
         "source_test": SOURCE_TEST,
         "source_function": source_function,
+        "prompt_body": prompt.strip(),
         "prompt": diversify_prompt(prompt.strip(), family, source_function, family_counter[family], category, verify_expr),
         "ground_truth": ground_truth.strip(),
         "verify_expr": verify_expr.strip(),
@@ -690,7 +818,7 @@ def def_verify(fn: str) -> str:
 
 
 # -----------------------------------------------------------------------------
-# Family 1: spec_to_code (16)
+# Family 1: spec_to_code
 # -----------------------------------------------------------------------------
 for fn in FUNCTION_ORDER:
     add_sample(
@@ -734,7 +862,7 @@ Output only the completed function definition.""",
 
 
 # -----------------------------------------------------------------------------
-# Family 2: translation (16)
+# Family 2: translation
 # -----------------------------------------------------------------------------
 for fn in TRANSLATION_FUNCTIONS:
     add_sample(
@@ -779,7 +907,7 @@ Return only Fold code.""",
 
 
 # -----------------------------------------------------------------------------
-# Family 3: bugfix (16)
+# Family 3: bugfix
 # -----------------------------------------------------------------------------
 for case in BUGGY_CASES:
     fn = case["fn"]
@@ -804,7 +932,7 @@ Return only the corrected definition.""",
 
 
 # -----------------------------------------------------------------------------
-# Family 4: composition/use (32)
+# Family 4: composition/use
 # -----------------------------------------------------------------------------
 
 
@@ -887,82 +1015,17 @@ if sum(1 for s in samples if s["family"] == "composition") != 32:
 # -----------------------------------------------------------------------------
 # Split train/eval
 # -----------------------------------------------------------------------------
-if len(samples) != 80:
-    raise ValueError(f"expected 80 samples, got {len(samples)}")
-
-by_family: Dict[str, List[Dict[str, object]]] = defaultdict(list)
-for s in samples:
-    by_family[str(s["family"])].append(s)
-
-EVAL_QUOTA = {
-    "spec_to_code": 3,
-    "translation": 3,
-    "bugfix": 3,
-    "composition": 5,
-}
-
-
-def spread_indices(n: int, k: int) -> Set[int]:
-    if k <= 0:
-        return set()
-    if k >= n:
-        return set(range(n))
-    if k == 1:
-        return {n // 2}
-    idxs = {round(i * (n - 1) / (k - 1)) for i in range(k)}
-    cursor = 0
-    while len(idxs) < k:
-        if cursor not in idxs:
-            idxs.add(cursor)
-        cursor += 1
-    return idxs
-
-
-eval_ids: Set[str] = set()
-for fam, fam_samples in by_family.items():
-    picked = spread_indices(len(fam_samples), EVAL_QUOTA[fam])
-    for i, s in enumerate(fam_samples):
-        if i in picked:
-            eval_ids.add(str(s["id"]))
-
-id_to_sample: Dict[str, Dict[str, object]] = {str(s["id"]): s for s in samples}
-all_source_functions = sorted({str(s["source_function"]) for s in samples})
-
-
-def eval_source_fn_counts(ids: Set[str]) -> Counter:
-    return Counter(str(id_to_sample[sid]["source_function"]) for sid in ids)
-
-
-changed = True
-while changed:
-    changed = False
-    fn_counts = eval_source_fn_counts(eval_ids)
-    missing_fns = [fn for fn in all_source_functions if fn_counts[fn] == 0]
-    if not missing_fns:
-        break
-
-    for fn in missing_fns:
-        candidates = [s for s in samples if str(s["source_function"]) == fn and str(s["id"]) not in eval_ids]
-        swapped = False
-        for cand in candidates:
-            fam = str(cand["family"])
-            fam_eval = [id_to_sample[sid] for sid in eval_ids if str(id_to_sample[sid]["family"]) == fam]
-            removable = [r for r in fam_eval if fn_counts[str(r["source_function"])] > 1]
-            if not removable:
-                continue
-            removable.sort(key=lambda r: (fn_counts[str(r["source_function"])], str(r["id"])), reverse=True)
-            out = removable[0]
-            eval_ids.remove(str(out["id"]))
-            eval_ids.add(str(cand["id"]))
-            changed = True
-            swapped = True
-            break
-        if swapped:
-            break
-
-missing_after = [fn for fn in all_source_functions if eval_source_fn_counts(eval_ids)[fn] == 0]
-if missing_after:
-    raise ValueError(f"eval split is missing source functions: {missing_after}")
+eval_ids = compute_leakage_aware_eval_ids(
+    samples,
+    eval_ratio=0.20,
+    eval_min_by_family={
+        "spec_to_code": max(3, len(FUNCTION_ORDER) // 6),
+        "translation": 3,
+        "bugfix": 3,
+        "composition": 5,
+    },
+    enforce_source_function_coverage=True,
+)
 
 train_rows: List[Dict[str, object]] = []
 eval_rows: List[Dict[str, object]] = []
@@ -975,8 +1038,8 @@ for s in samples:
         row["split"] = "train"
         train_rows.append(row)
 
-if len(train_rows) != 66 or len(eval_rows) != 14:
-    raise ValueError(f"split mismatch: train={len(train_rows)}, eval={len(eval_rows)}")
+if not train_rows or not eval_rows:
+    raise ValueError("split generation failed: train/eval must both be non-empty")
 
 
 def write_jsonl(path: Path, rows: List[Dict[str, object]]) -> None:
@@ -988,6 +1051,10 @@ def write_jsonl(path: Path, rows: List[Dict[str, object]]) -> None:
 write_jsonl(ALL_PATH, train_rows + eval_rows)
 write_jsonl(TRAIN_PATH, train_rows)
 write_jsonl(EVAL_PATH, eval_rows)
+
+by_family: Dict[str, List[Dict[str, object]]] = defaultdict(list)
+for s in samples:
+    by_family[str(s["family"])].append(s)
 
 summary = {
     "total": len(samples),

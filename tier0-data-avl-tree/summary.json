@@ -1,40 +1,48 @@
 {
-  "total": 80,
-  "train": 66,
-  "eval": 14,
+  "total": 96,
+  "train": 62,
+  "eval": 34,
   "families": {
     "bugfix": {
       "total": 16,
-      "eval": 3,
-      "train": 13
+      "eval": 4,
+      "train": 12
     },
     "composition": {
       "total": 32,
-      "eval": 5,
-      "train": 27
+      "eval": 6,
+      "train": 26
     },
     "spec_to_code": {
-      "total": 16,
-      "eval": 3,
-      "train": 13
+      "total": 32,
+      "eval": 20,
+      "train": 12
     },
     "translation": {
       "total": 16,
-      "eval": 3,
-      "train": 13
+      "eval": 4,
+      "train": 12
     }
   },
   "difficulty": {
-    "easy": 14,
+    "easy": 20,
     "hard": 33,
-    "medium": 33
+    "medium": 43
   },
   "source_functions": {
+    "avl-contains?": 2,
+    "avl-delete": 2,
     "avl-delete-by": 10,
     "avl-delete-min-by": 10,
     "avl-empty?": 10,
+    "avl-greater-than": 2,
+    "avl-insert": 2,
     "avl-insert-by": 10,
+    "avl-keys-between": 2,
+    "avl-less-than": 2,
+    "avl-lookup": 2,
     "avl-lookup-by": 10,
+    "avl-range": 2,
     "avl-range-by": 10,
     "make-avl-node": 10,
     "rebalance": 10
